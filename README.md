@@ -40,7 +40,7 @@ uv run --directory backend uvicorn app.main:app --port 8000
 npm --prefix frontend start
 ```
 
-Abrí http://localhost:4200 y creá una cuenta por persona. Supabase Studio queda en http://127.0.0.1:54323 y los emails de prueba en http://127.0.0.1:54324.
+Abrí http://127.0.0.1:4200 (o http://localhost:4200) y creá una cuenta por persona. Supabase Studio queda en http://127.0.0.1:54323 y los emails de prueba en http://127.0.0.1:54324.
 
 Los valores de conexión locales (`backend/app/config.py` y `frontend/src/environments/entorno.ts`) son los que muestra `npx supabase status`. Para cambiarlos en el backend, creá `backend/.env` con `URL_BASE_DATOS`, `SUPABASE_URL` o `SUPABASE_JWT_SECRET`.
 

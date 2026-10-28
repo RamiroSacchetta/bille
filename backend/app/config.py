@@ -12,7 +12,7 @@ class Configuracion(BaseSettings):
     url_base_datos: str = "postgresql://postgres:postgres@127.0.0.1:54322/postgres"
     supabase_url: str = "http://127.0.0.1:54321"
     supabase_jwt_secret: str = "super-secret-jwt-token-with-at-least-32-characters-long"
-    origenes_cors: list[str] = ["http://localhost:4200"]
+    origenes_cors: list[str] = ["http://localhost:4200", "http://127.0.0.1:4200"]
     zona_horaria: str = "America/Argentina/Buenos_Aires"
 
 
