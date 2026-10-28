@@ -6,7 +6,7 @@ from decimal import Decimal
 from uuid import UUID, uuid4
 
 from app.dominio.modelos import Movimiento, Objetivo, Saldos, TipoMovimiento
-from app.dominio.puertos import Categoria, FiltroMovimientos, MetodoPago
+from app.dominio.puertos import Categoria, FiltroMovimientos, MetodoPago, Perfil
 
 
 class AlmacenEnMemoria:
@@ -16,6 +16,7 @@ class AlmacenEnMemoria:
         self.categorias: dict[UUID, tuple[UUID, Categoria]] = {}
         self.metodos: dict[UUID, tuple[UUID, MetodoPago]] = {}
         self.bloqueos: list[UUID] = []
+        self.perfiles: dict[UUID, Perfil] = {}
 
     # Ayudas para preparar datos
     def agregar_categoria(self, usuario_id: UUID, nombre: str, tipo: TipoMovimiento) -> UUID:
@@ -88,6 +89,42 @@ class AlmacenEnMemoria:
     def eliminar_objetivo(self, usuario_id: UUID, objetivo_id: UUID) -> None:
         if self.obtener_objetivo(usuario_id, objetivo_id):
             del self.objetivos[objetivo_id]
+
+    def obtener_perfil(self, usuario_id: UUID) -> Perfil | None:
+        return self.perfiles.get(usuario_id)
+
+    def actualizar_perfil(self, usuario_id: UUID, nombre_visible: str) -> Perfil:
+        perfil = Perfil(usuario_id, nombre_visible, "ARS")
+        self.perfiles[usuario_id] = perfil
+        return perfil
+
+    def listar_categorias(self, usuario_id: UUID) -> list[Categoria]:
+        return [c for dueno, c in self.categorias.values() if dueno == usuario_id]
+
+    def crear_categoria(
+        self, usuario_id: UUID, nombre: str, tipo: TipoMovimiento, icono: str | None
+    ) -> Categoria:
+        categoria = Categoria(uuid4(), nombre, tipo, icono)
+        self.categorias[categoria.id] = (usuario_id, categoria)
+        return categoria
+
+    def eliminar_categoria(self, usuario_id: UUID, categoria_id: UUID) -> None:
+        if self.obtener_categoria(usuario_id, categoria_id):
+            del self.categorias[categoria_id]
+
+    def listar_metodos_pago(self, usuario_id: UUID) -> list[MetodoPago]:
+        return [m for dueno, m in self.metodos.values() if dueno == usuario_id]
+
+    def crear_metodo_pago(self, usuario_id: UUID, nombre: str, tipo: str) -> MetodoPago:
+        metodo = MetodoPago(uuid4(), nombre, tipo, True)
+        self.metodos[metodo.id] = (usuario_id, metodo)
+        return metodo
+
+    def actualizar_metodo_pago(self, usuario_id: UUID, metodo_pago_id: UUID, activo: bool) -> MetodoPago:
+        _, metodo = self.metodos[metodo_pago_id]
+        metodo = replace(metodo, activo=activo)
+        self.metodos[metodo_pago_id] = (usuario_id, metodo)
+        return metodo
 
     def objetivo_tiene_movimientos(self, usuario_id: UUID, objetivo_id: UUID) -> bool:
         return any(
