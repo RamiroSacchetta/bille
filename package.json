@@ -1,0 +1,14 @@
+{
+  "name": "bille",
+  "private": true,
+  "description": "Finanzas personales para dos cuentas separadas",
+  "scripts": {
+    "bd:iniciar": "supabase start",
+    "bd:detener": "supabase stop",
+    "bd:reiniciar": "supabase db reset",
+    "bd:estado": "supabase status"
+  },
+  "devDependencies": {
+    "supabase": "2.122.0"
+  }
+}

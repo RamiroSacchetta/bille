@@ -1,0 +1,26 @@
+# Entornos y secretos
+.env
+.env.*
+!.env.ejemplo
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Node / Angular
+node_modules/
+dist/
+.angular/
+
+# Supabase local
+supabase/.temp/
+supabase/.branches/
+
+# Editor y sistema
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
