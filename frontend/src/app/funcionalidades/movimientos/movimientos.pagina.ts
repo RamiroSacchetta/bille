@@ -23,7 +23,10 @@ interface Dia {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <main class="pantalla">
-      <h1>Movimientos</h1>
+      <header class="encabezado">
+        <h1>Movimientos</h1>
+        <button type="button" class="boton" (click)="exportar()" [disabled]="exportando()">Exportar CSV</button>
+      </header>
 
       <div class="selector-mes tarjeta">
         <button type="button" class="boton boton-icono" (click)="cambiarMes(-1)" aria-label="Mes anterior">‹</button>
@@ -92,6 +95,7 @@ export class MovimientosPagina implements OnInit {
   readonly filtro = signal<Filtro>('todos');
   readonly movimientos = signal<Movimiento[]>([]);
   readonly aConfirmar = signal<Movimiento | null>(null);
+  readonly exportando = signal(false);
   readonly error = signal<string | null>(null);
   readonly nombreMes = nombreMes;
 
@@ -119,6 +123,26 @@ export class MovimientosPagina implements OnInit {
   cambiarMes(delta: number): void {
     this.mes.update((mes) => moverMes(mes, delta));
     this.cargar();
+  }
+
+  /** Descarga el CSV del mes elegido para abrirlo en Excel. */
+  exportar(): void {
+    this.exportando.set(true);
+    this.api.exportarMovimientos(this.mes()).subscribe({
+      next: (archivo) => {
+        const url = URL.createObjectURL(archivo);
+        const enlace = document.createElement('a');
+        enlace.href = url;
+        enlace.download = `bille-movimientos-${this.mes()}.csv`;
+        enlace.click();
+        URL.revokeObjectURL(url);
+        this.exportando.set(false);
+      },
+      error: (error) => {
+        this.exportando.set(false);
+        this.error.set(mensajeDeError(error));
+      },
+    });
   }
 
   pedirConfirmacion(movimiento: Movimiento): void {

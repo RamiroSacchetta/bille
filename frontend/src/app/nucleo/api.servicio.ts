@@ -120,6 +120,12 @@ export class ApiServicio {
   pagarResumen(id: string, datos: PagoResumen): Observable<Movimiento> {
     return this.http.post<Movimiento>(`${this.url}/tarjetas/${id}/pagos`, datos);
   }
+
+  /** CSV de los movimientos del mes (o de todos si no se indica mes). */
+  exportarMovimientos(mes?: string): Observable<Blob> {
+    const params = mes ? new HttpParams().set('mes', mes) : undefined;
+    return this.http.get(`${this.url}/exportar/movimientos`, { params, responseType: 'blob' });
+  }
 }
 
 /** Mensaje para mostrar al usuario a partir de un error de la API. */

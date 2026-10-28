@@ -36,6 +36,7 @@ from app.api.esquemas import (
 from app.aplicacion import casos_uso as cu
 from app.aplicacion import catalogo
 from app.aplicacion import tarjetas as ct
+from app.aplicacion.exportar import movimientos_a_csv
 from app.config import configuracion
 from app.dominio.modelos import TipoMovimiento, Ubicacion
 from app.dominio.puertos import FiltroMovimientos
@@ -309,3 +310,31 @@ def pagar_resumen(tarjeta_id: UUID, datos: PagoResumenEntrada, usuario: UsuarioA
     with abrir() as almacen:
         pago = ct.pagar_resumen(almacen, usuario, tarjeta_id, datos.monto, datos.ocurrido_en, origenes)
     return MovimientoSalida.desde(pago)
+
+
+# -- Exportar ---------------------------------------------------------------
+
+
+@rutas.get("/exportar/movimientos", tags=["exportar"], response_class=Response)
+def exportar_movimientos(
+    usuario: UsuarioActual, abrir: Abrir, mes: str | None = Query(default=None, pattern=PATRON_MES)
+):
+    desde, hasta = _limites_mes(mes) if mes else (None, None)
+    with abrir() as almacen:
+        movimientos = almacen.listar_movimientos(
+            usuario, FiltroMovimientos(desde=desde, hasta=hasta, limite=100_000)
+        )
+        contenido = movimientos_a_csv(
+            movimientos,
+            categorias={c.id: c.nombre for c in almacen.listar_categorias(usuario)},
+            metodos={m.id: m.nombre for m in almacen.listar_metodos_pago(usuario)},
+            objetivos={o.id: o.nombre for o in almacen.listar_objetivos(usuario)},
+            tarjetas={t.id: f"{t.nombre} (crédito)" for t in almacen.listar_tarjetas(usuario)},
+            zona_horaria=configuracion().zona_horaria,
+        )
+    nombre = f"bille-movimientos-{mes or 'todos'}.csv"
+    return Response(
+        content=contenido.encode("utf-8"),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{nombre}"'},
+    )
