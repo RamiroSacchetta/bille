@@ -8,7 +8,7 @@ Postgres no devuelve datos de otro usuario.
 import json
 from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -18,6 +18,7 @@ from psycopg_pool import ConnectionPool
 
 from app.dominio.modelos import Bolsillo, Movimiento, Objetivo, Parte, Saldos, TipoMovimiento, Ubicacion
 from app.dominio.puertos import Categoria, FiltroMovimientos, MetodoPago, Perfil
+from app.dominio.tarjetas import CompraTarjeta, Cuota, Tarjeta
 
 
 @contextmanager
@@ -39,7 +40,33 @@ def _a_movimiento(fila: dict, partes: list[Parte]) -> Movimiento:
         descripcion=fila["descripcion"],
         categoria_id=fila["categoria_id"],
         metodo_pago_id=fila["metodo_pago_id"],
+        tarjeta_id=fila["tarjeta_id"],
         partes=partes,
+    )
+
+
+def _a_tarjeta(fila: dict) -> Tarjeta:
+    return Tarjeta(
+        id=fila["id"],
+        usuario_id=fila["usuario_id"],
+        nombre=fila["nombre"],
+        dia_cierre=fila["dia_cierre"],
+        dia_vencimiento=fila["dia_vencimiento"],
+        activa=fila["activa"],
+    )
+
+
+def _a_compra(fila: dict, cuotas: list[Cuota]) -> CompraTarjeta:
+    return CompraTarjeta(
+        id=fila["id"],
+        usuario_id=fila["usuario_id"],
+        tarjeta_id=fila["tarjeta_id"],
+        monto_total=fila["monto_total"],
+        cantidad_cuotas=fila["cantidad_cuotas"],
+        comprado_en=fila["comprado_en"],
+        descripcion=fila["descripcion"],
+        categoria_id=fila["categoria_id"],
+        cuotas=cuotas,
     )
 
 
@@ -105,8 +132,8 @@ class AlmacenPostgres:
         fila = self._uno(
             """
             select
-              coalesce(sum(monto) filter (where tipo = 'ingreso'), 0) as ingresos,
-              coalesce(sum(monto) filter (where tipo = 'gasto'), 0) as gastos
+              coalesce(sum(monto) filter (where tipo = 'ingreso'), 0)::numeric(14, 2) as ingresos,
+              coalesce(sum(monto) filter (where tipo = 'gasto'), 0)::numeric(14, 2) as gastos
             from public.movimientos
             where usuario_id = %s and ocurrido_en >= %s and ocurrido_en < %s
             """,
@@ -120,8 +147,8 @@ class AlmacenPostgres:
         fila = self._uno(
             """
             insert into public.movimientos
-              (usuario_id, tipo, monto, ocurrido_en, descripcion, categoria_id, metodo_pago_id)
-            values (%s, %s, %s, %s, %s, %s, %s)
+              (usuario_id, tipo, monto, ocurrido_en, descripcion, categoria_id, metodo_pago_id, tarjeta_id)
+            values (%s, %s, %s, %s, %s, %s, %s, %s)
             returning *
             """,
             (
@@ -132,6 +159,7 @@ class AlmacenPostgres:
                 movimiento.descripcion,
                 movimiento.categoria_id,
                 movimiento.metodo_pago_id,
+                movimiento.tarjeta_id,
             ),
         )
         with self._cx.cursor() as cursor:
@@ -328,3 +356,137 @@ class AlmacenPostgres:
             (activo, metodo_pago_id, usuario_id),
         )
         return _a_metodo(fila)
+
+    # -- Tarjetas de crédito --------------------------------------------------
+
+    def guardar_tarjeta(self, tarjeta: Tarjeta) -> Tarjeta:
+        if tarjeta.id is None:
+            fila = self._uno(
+                """
+                insert into public.tarjetas (usuario_id, nombre, dia_cierre, dia_vencimiento, activa)
+                values (%s, %s, %s, %s, %s) returning *
+                """,
+                (
+                    tarjeta.usuario_id,
+                    tarjeta.nombre,
+                    tarjeta.dia_cierre,
+                    tarjeta.dia_vencimiento,
+                    tarjeta.activa,
+                ),
+            )
+        else:
+            fila = self._uno(
+                """
+                update public.tarjetas
+                set nombre = %s, dia_cierre = %s, dia_vencimiento = %s, activa = %s
+                where id = %s and usuario_id = %s
+                returning *
+                """,
+                (
+                    tarjeta.nombre,
+                    tarjeta.dia_cierre,
+                    tarjeta.dia_vencimiento,
+                    tarjeta.activa,
+                    tarjeta.id,
+                    tarjeta.usuario_id,
+                ),
+            )
+        return _a_tarjeta(fila)
+
+    def obtener_tarjeta(self, usuario_id: UUID, tarjeta_id: UUID) -> Tarjeta | None:
+        fila = self._uno(
+            "select * from public.tarjetas where id = %s and usuario_id = %s", (tarjeta_id, usuario_id)
+        )
+        return _a_tarjeta(fila) if fila else None
+
+    def listar_tarjetas(self, usuario_id: UUID) -> list[Tarjeta]:
+        filas = self._todos(
+            "select * from public.tarjetas where usuario_id = %s order by nombre", (usuario_id,)
+        )
+        return [_a_tarjeta(f) for f in filas]
+
+    def guardar_compra_tarjeta(self, compra: CompraTarjeta) -> CompraTarjeta:
+        fila = self._uno(
+            """
+            insert into public.compras_tarjeta
+              (usuario_id, tarjeta_id, descripcion, categoria_id, monto_total, cantidad_cuotas, comprado_en)
+            values (%s, %s, %s, %s, %s, %s, %s)
+            returning *
+            """,
+            (
+                compra.usuario_id,
+                compra.tarjeta_id,
+                compra.descripcion,
+                compra.categoria_id,
+                compra.monto_total,
+                compra.cantidad_cuotas,
+                compra.comprado_en,
+            ),
+        )
+        with self._cx.cursor() as cursor:
+            cursor.executemany(
+                """
+                insert into public.cuotas_tarjeta (compra_id, usuario_id, tarjeta_id, numero, monto, mes_resumen)
+                values (%s, %s, %s, %s, %s, %s)
+                """,
+                [
+                    (fila["id"], compra.usuario_id, compra.tarjeta_id, c.numero, c.monto, c.mes_resumen)
+                    for c in compra.cuotas
+                ],
+            )
+        return _a_compra(fila, list(compra.cuotas))
+
+    def _cuotas_de(self, compra_ids: list[UUID]) -> dict[UUID, list[Cuota]]:
+        cuotas: dict[UUID, list[Cuota]] = {}
+        for fila in self._todos(
+            "select * from public.cuotas_tarjeta where compra_id = any(%s) order by numero", (compra_ids,)
+        ):
+            cuotas.setdefault(fila["compra_id"], []).append(
+                Cuota(fila["numero"], fila["monto"], fila["mes_resumen"])
+            )
+        return cuotas
+
+    def obtener_compra_tarjeta(self, usuario_id: UUID, compra_id: UUID) -> CompraTarjeta | None:
+        fila = self._uno(
+            "select * from public.compras_tarjeta where id = %s and usuario_id = %s", (compra_id, usuario_id)
+        )
+        return _a_compra(fila, self._cuotas_de([compra_id]).get(compra_id, [])) if fila else None
+
+    def listar_compras_tarjeta(self, usuario_id: UUID, tarjeta_id: UUID) -> list[CompraTarjeta]:
+        filas = self._todos(
+            """
+            select * from public.compras_tarjeta
+            where usuario_id = %s and tarjeta_id = %s
+            order by comprado_en desc, creado_en desc
+            limit 200
+            """,
+            (usuario_id, tarjeta_id),
+        )
+        if not filas:
+            return []
+        cuotas = self._cuotas_de([f["id"] for f in filas])
+        return [_a_compra(f, cuotas.get(f["id"], [])) for f in filas]
+
+    def eliminar_compra_tarjeta(self, usuario_id: UUID, compra_id: UUID) -> None:
+        self._cx.execute(
+            "delete from public.compras_tarjeta where id = %s and usuario_id = %s", (compra_id, usuario_id)
+        )
+
+    def cuotas_por_mes(self, usuario_id: UUID, tarjeta_id: UUID) -> dict[date, Decimal]:
+        filas = self._todos(
+            """
+            select mes_resumen, sum(monto) as monto
+            from public.cuotas_tarjeta
+            where usuario_id = %s and tarjeta_id = %s
+            group by mes_resumen
+            """,
+            (usuario_id, tarjeta_id),
+        )
+        return {f["mes_resumen"]: f["monto"] for f in filas}
+
+    def pagado_tarjeta(self, usuario_id: UUID, tarjeta_id: UUID) -> Decimal:
+        fila = self._uno(
+            "select coalesce(sum(monto), 0)::numeric(14, 2) as pagado from public.movimientos where usuario_id = %s and tarjeta_id = %s",
+            (usuario_id, tarjeta_id),
+        )
+        return fila["pagado"]

@@ -57,6 +57,8 @@ class Movimiento:
     descripcion: str | None = None
     categoria_id: UUID | None = None
     metodo_pago_id: UUID | None = None
+    # Solo en gastos: la tarjeta de crédito cuyo resumen se pagó
+    tarjeta_id: UUID | None = None
     id: UUID | None = None
 
 

@@ -156,3 +156,46 @@ def test_una_cuenta_no_ve_ni_usa_los_datos_de_la_otra(cliente, ana, beto):
         cliente.get("/api/resumen", headers=beto, params={"mes": "2026-10"}).json()["saldos"]["total"]
         == "1000.00"
     )
+
+
+def test_tarjeta_de_credito_de_punta_a_punta(cliente, beto):
+    carla = _crear_cuenta("Carla")
+    cliente.post("/api/movimientos/ingresos", headers=carla, json={"monto": "1000000", "ocurrido_en": FECHA})
+    visa = cliente.post(
+        "/api/tarjetas", headers=carla, json={"nombre": "Visa", "dia_cierre": 25, "dia_vencimiento": 5}
+    )
+    assert visa.status_code == 201, visa.text
+    visa_id = visa.json()["id"]
+
+    compra = cliente.post(
+        f"/api/tarjetas/{visa_id}/compras",
+        headers=carla,
+        json={"monto": "900000", "cuotas": 3, "comprado_en": "2026-10-10", "descripcion": "Heladera"},
+    )
+    assert compra.status_code == 201, compra.text
+    assert [c["mes_resumen"] for c in compra.json()["cuotas"]] == ["2026-10-01", "2026-11-01", "2026-12-01"]
+
+    resumen = cliente.get("/api/resumen", headers=carla, params={"mes": "2026-10"}).json()
+    assert resumen["saldos"]["total"] == "1000000.00"
+    assert resumen["gastos_mes"] == "0.00"
+    assert resumen["deuda_tarjetas"] == "900000.00"
+
+    pago = cliente.post(
+        f"/api/tarjetas/{visa_id}/pagos", headers=carla, json={"monto": "320000", "ocurrido_en": FECHA}
+    )
+    assert pago.status_code == 201, pago.text
+    resumen = cliente.get("/api/resumen", headers=carla, params={"mes": "2026-10"}).json()
+    assert (resumen["saldos"]["total"], resumen["gastos_mes"], resumen["deuda_tarjetas"]) == (
+        "680000.00",
+        "320000.00",
+        "580000.00",
+    )
+
+    assert cliente.get("/api/tarjetas", headers=beto).json() == []
+    assert cliente.get(f"/api/tarjetas/{visa_id}/compras", headers=beto).json() == []
+    assert (
+        cliente.post(
+            f"/api/tarjetas/{visa_id}/pagos", headers=beto, json={"monto": "1", "ocurrido_en": FECHA}
+        ).status_code
+        == 404
+    )

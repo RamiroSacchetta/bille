@@ -1,12 +1,13 @@
 """Puertos: lo que el dominio necesita del mundo exterior, sin saber cómo se implementa."""
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Protocol
 from uuid import UUID
 
 from app.dominio.modelos import Movimiento, Objetivo, Saldos, TipoMovimiento
+from app.dominio.tarjetas import CompraTarjeta, Tarjeta
 
 
 @dataclass(frozen=True)
@@ -93,3 +94,25 @@ class Almacen(Protocol):
     def crear_metodo_pago(self, usuario_id: UUID, nombre: str, tipo: str) -> MetodoPago: ...
 
     def actualizar_metodo_pago(self, usuario_id: UUID, metodo_pago_id: UUID, activo: bool) -> MetodoPago: ...
+
+    # Tarjetas de crédito
+
+    def guardar_tarjeta(self, tarjeta: Tarjeta) -> Tarjeta: ...
+
+    def obtener_tarjeta(self, usuario_id: UUID, tarjeta_id: UUID) -> Tarjeta | None: ...
+
+    def listar_tarjetas(self, usuario_id: UUID) -> list[Tarjeta]: ...
+
+    def guardar_compra_tarjeta(self, compra: CompraTarjeta) -> CompraTarjeta: ...
+
+    def obtener_compra_tarjeta(self, usuario_id: UUID, compra_id: UUID) -> CompraTarjeta | None: ...
+
+    def listar_compras_tarjeta(self, usuario_id: UUID, tarjeta_id: UUID) -> list[CompraTarjeta]: ...
+
+    def eliminar_compra_tarjeta(self, usuario_id: UUID, compra_id: UUID) -> None: ...
+
+    def cuotas_por_mes(self, usuario_id: UUID, tarjeta_id: UUID) -> dict[date, Decimal]:
+        """Suma de las cuotas anotadas de la tarjeta, por mes de resumen."""
+
+    def pagado_tarjeta(self, usuario_id: UUID, tarjeta_id: UUID) -> Decimal:
+        """Suma de los pagos de resumen registrados para la tarjeta."""

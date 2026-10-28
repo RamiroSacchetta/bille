@@ -95,8 +95,12 @@ def registrar_gasto(
     metodo_pago_id: UUID | None = None,
     descripcion: str | None = None,
     origenes: list[tuple[Ubicacion, Decimal]] | None = None,
+    tarjeta_id: UUID | None = None,
 ) -> Movimiento:
-    """Sin orígenes, el gasto sale entero de la plata del mes. Con orígenes, es un pago dividido."""
+    """Sin orígenes, el gasto sale entero de la plata del mes. Con orígenes, es un pago dividido.
+
+    Con `tarjeta_id` es el pago del resumen de esa tarjeta (ver aplicacion.tarjetas.pagar_resumen).
+    """
     monto = reglas.normalizar_monto(monto)
     origenes = origenes or [(DISPONIBLE, monto)]
     _validar_categoria(almacen, usuario_id, categoria_id, TipoMovimiento.GASTO)
@@ -111,6 +115,7 @@ def registrar_gasto(
         descripcion=descripcion,
         categoria_id=categoria_id,
         metodo_pago_id=metodo_pago_id,
+        tarjeta_id=tarjeta_id,
     )
     return _guardar_con_saldos(almacen, movimiento)
 
@@ -216,6 +221,8 @@ class Resumen:
     ingresos_periodo: Decimal
     gastos_periodo: Decimal
     objetivos: list[ResumenObjetivo]
+    # Estimación de lo que se debe en tarjetas: no forma parte de "Tu plata"
+    deuda_tarjetas: Decimal = Decimal(0)
 
 
 def consultar_resumen(almacen: Almacen, usuario_id: UUID, desde: datetime, hasta: datetime) -> Resumen:
@@ -228,7 +235,18 @@ def consultar_resumen(almacen: Almacen, usuario_id: UUID, desde: datetime, hasta
         for objetivo in almacen.listar_objetivos(usuario_id)
         if not objetivo.archivado
     ]
-    return Resumen(saldos, ingresos, gastos, objetivos)
+    deuda = sum(
+        (
+            max(
+                sum(almacen.cuotas_por_mes(usuario_id, t.id).values(), Decimal(0))
+                - almacen.pagado_tarjeta(usuario_id, t.id),
+                Decimal(0),
+            )
+            for t in almacen.listar_tarjetas(usuario_id)
+        ),
+        Decimal(0),
+    )
+    return Resumen(saldos, ingresos, gastos, objetivos, deuda)
 
 
 def ubicacion(bolsillo: Bolsillo, objetivo_id: UUID | None = None) -> Ubicacion:

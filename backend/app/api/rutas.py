@@ -12,6 +12,8 @@ from app.api.dependencias import Abrir, UsuarioActual
 from app.api.esquemas import (
     CategoriaEntrada,
     CategoriaSalida,
+    CompraTarjetaEntrada,
+    CompraTarjetaSalida,
     GastoEntrada,
     IngresoEntrada,
     MetodoPagoCambios,
@@ -21,14 +23,19 @@ from app.api.esquemas import (
     ObjetivoCambios,
     ObjetivoEntrada,
     ObjetivoSalida,
+    PagoResumenEntrada,
     PerfilCambios,
     PerfilSalida,
     ResumenSalida,
+    TarjetaCambios,
+    TarjetaEntrada,
+    TarjetaSalida,
     TransferenciaEntrada,
     UbicacionEntrada,
 )
 from app.aplicacion import casos_uso as cu
 from app.aplicacion import catalogo
+from app.aplicacion import tarjetas as ct
 from app.config import configuracion
 from app.dominio.modelos import TipoMovimiento, Ubicacion
 from app.dominio.puertos import FiltroMovimientos
@@ -40,6 +47,10 @@ PATRON_MES = r"^\d{4}-(0[1-9]|1[0-2])$"
 
 def _ubicacion(entrada: UbicacionEntrada) -> Ubicacion:
     return cu.ubicacion(entrada.bolsillo, entrada.objetivo_id)
+
+
+def _hoy():
+    return datetime.now(ZoneInfo(configuracion().zona_horaria)).date()
 
 
 def _limites_mes(mes: str) -> tuple[datetime, datetime]:
@@ -229,3 +240,72 @@ def actualizar_metodo_pago(
 ):
     with abrir() as almacen:
         return asdict(catalogo.actualizar_metodo_pago(almacen, usuario, metodo_pago_id, datos.activo))
+
+
+# -- Tarjetas de crédito ----------------------------------------------------
+
+
+@rutas.get("/tarjetas", response_model=list[TarjetaSalida], tags=["tarjetas"])
+def listar_tarjetas(usuario: UsuarioActual, abrir: Abrir):
+    with abrir() as almacen:
+        return [TarjetaSalida.desde(e) for e in ct.estado_tarjetas(almacen, usuario, _hoy())]
+
+
+def _estado_de(almacen, usuario: UUID, tarjeta_id: UUID) -> TarjetaSalida:
+    estado = next(e for e in ct.estado_tarjetas(almacen, usuario, _hoy()) if e.tarjeta.id == tarjeta_id)
+    return TarjetaSalida.desde(estado)
+
+
+@rutas.post("/tarjetas", response_model=TarjetaSalida, status_code=201, tags=["tarjetas"])
+def crear_tarjeta(datos: TarjetaEntrada, usuario: UsuarioActual, abrir: Abrir):
+    with abrir() as almacen:
+        tarjeta = ct.crear_tarjeta(almacen, usuario, datos.nombre, datos.dia_cierre, datos.dia_vencimiento)
+        return _estado_de(almacen, usuario, tarjeta.id)
+
+
+@rutas.patch("/tarjetas/{tarjeta_id}", response_model=TarjetaSalida, tags=["tarjetas"])
+def actualizar_tarjeta(tarjeta_id: UUID, datos: TarjetaCambios, usuario: UsuarioActual, abrir: Abrir):
+    with abrir() as almacen:
+        ct.actualizar_tarjeta(almacen, usuario, tarjeta_id, **datos.model_dump(exclude_unset=True))
+        return _estado_de(almacen, usuario, tarjeta_id)
+
+
+@rutas.get("/tarjetas/{tarjeta_id}/compras", response_model=list[CompraTarjetaSalida], tags=["tarjetas"])
+def listar_compras(tarjeta_id: UUID, usuario: UsuarioActual, abrir: Abrir):
+    with abrir() as almacen:
+        return [CompraTarjetaSalida.desde(c) for c in almacen.listar_compras_tarjeta(usuario, tarjeta_id)]
+
+
+@rutas.post(
+    "/tarjetas/{tarjeta_id}/compras", response_model=CompraTarjetaSalida, status_code=201, tags=["tarjetas"]
+)
+def registrar_compra(tarjeta_id: UUID, datos: CompraTarjetaEntrada, usuario: UsuarioActual, abrir: Abrir):
+    with abrir() as almacen:
+        compra = ct.registrar_compra(
+            almacen,
+            usuario,
+            tarjeta_id,
+            datos.monto,
+            datos.cuotas,
+            datos.comprado_en,
+            categoria_id=datos.categoria_id,
+            descripcion=datos.descripcion,
+        )
+    return CompraTarjetaSalida.desde(compra)
+
+
+@rutas.delete("/tarjetas/compras/{compra_id}", status_code=204, tags=["tarjetas"])
+def eliminar_compra(compra_id: UUID, usuario: UsuarioActual, abrir: Abrir):
+    with abrir() as almacen:
+        ct.eliminar_compra(almacen, usuario, compra_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@rutas.post(
+    "/tarjetas/{tarjeta_id}/pagos", response_model=MovimientoSalida, status_code=201, tags=["tarjetas"]
+)
+def pagar_resumen(tarjeta_id: UUID, datos: PagoResumenEntrada, usuario: UsuarioActual, abrir: Abrir):
+    origenes = [(_ubicacion(o), o.monto) for o in datos.origenes] if datos.origenes else None
+    with abrir() as almacen:
+        pago = ct.pagar_resumen(almacen, usuario, tarjeta_id, datos.monto, datos.ocurrido_en, origenes)
+    return MovimientoSalida.desde(pago)

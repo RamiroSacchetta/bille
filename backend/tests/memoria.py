@@ -1,12 +1,13 @@
 """Almacén en memoria para probar los casos de uso sin base de datos."""
 
 from dataclasses import replace
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID, uuid4
 
 from app.dominio.modelos import Movimiento, Objetivo, Saldos, TipoMovimiento
 from app.dominio.puertos import Categoria, FiltroMovimientos, MetodoPago, Perfil
+from app.dominio.tarjetas import CompraTarjeta, Tarjeta
 
 
 class AlmacenEnMemoria:
@@ -17,6 +18,8 @@ class AlmacenEnMemoria:
         self.metodos: dict[UUID, tuple[UUID, MetodoPago]] = {}
         self.bloqueos: list[UUID] = []
         self.perfiles: dict[UUID, Perfil] = {}
+        self.tarjetas: dict[UUID, Tarjeta] = {}
+        self.compras: dict[UUID, CompraTarjeta] = {}
 
     # Ayudas para preparar datos
     def agregar_categoria(self, usuario_id: UUID, nombre: str, tipo: TipoMovimiento) -> UUID:
@@ -132,4 +135,50 @@ class AlmacenEnMemoria:
             for m in self.movimientos.values()
             if m.usuario_id == usuario_id
             for parte in m.partes
+        )
+
+    # Tarjetas de crédito
+    def guardar_tarjeta(self, tarjeta: Tarjeta) -> Tarjeta:
+        tarjeta.id = tarjeta.id or uuid4()
+        self.tarjetas[tarjeta.id] = tarjeta
+        return tarjeta
+
+    def obtener_tarjeta(self, usuario_id: UUID, tarjeta_id: UUID) -> Tarjeta | None:
+        tarjeta = self.tarjetas.get(tarjeta_id)
+        return tarjeta if tarjeta and tarjeta.usuario_id == usuario_id else None
+
+    def listar_tarjetas(self, usuario_id: UUID) -> list[Tarjeta]:
+        return [t for t in self.tarjetas.values() if t.usuario_id == usuario_id]
+
+    def guardar_compra_tarjeta(self, compra: CompraTarjeta) -> CompraTarjeta:
+        compra.id = compra.id or uuid4()
+        self.compras[compra.id] = compra
+        return compra
+
+    def obtener_compra_tarjeta(self, usuario_id: UUID, compra_id: UUID) -> CompraTarjeta | None:
+        compra = self.compras.get(compra_id)
+        return compra if compra and compra.usuario_id == usuario_id else None
+
+    def listar_compras_tarjeta(self, usuario_id: UUID, tarjeta_id: UUID) -> list[CompraTarjeta]:
+        return [c for c in self.compras.values() if c.usuario_id == usuario_id and c.tarjeta_id == tarjeta_id]
+
+    def eliminar_compra_tarjeta(self, usuario_id: UUID, compra_id: UUID) -> None:
+        if self.obtener_compra_tarjeta(usuario_id, compra_id):
+            del self.compras[compra_id]
+
+    def cuotas_por_mes(self, usuario_id: UUID, tarjeta_id: UUID) -> dict[date, Decimal]:
+        meses: dict[date, Decimal] = {}
+        for compra in self.listar_compras_tarjeta(usuario_id, tarjeta_id):
+            for cuota in compra.cuotas:
+                meses[cuota.mes_resumen] = meses.get(cuota.mes_resumen, Decimal(0)) + cuota.monto
+        return meses
+
+    def pagado_tarjeta(self, usuario_id: UUID, tarjeta_id: UUID) -> Decimal:
+        return sum(
+            (
+                m.monto
+                for m in self.movimientos.values()
+                if m.usuario_id == usuario_id and m.tarjeta_id == tarjeta_id
+            ),
+            Decimal(0),
         )

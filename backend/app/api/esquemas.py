@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 from app.aplicacion.casos_uso import Resumen
 from app.dominio.modelos import Bolsillo, Movimiento, Objetivo, TipoMovimiento
+from app.dominio.tarjetas import CompraTarjeta, EstadoTarjeta
 
 Monto = Decimal
 
@@ -62,6 +63,7 @@ class MovimientoSalida(BaseModel):
     descripcion: str | None
     categoria_id: UUID | None
     metodo_pago_id: UUID | None
+    tarjeta_id: UUID | None = None
     partes: list[ParteSalida]
 
     @classmethod
@@ -74,6 +76,7 @@ class MovimientoSalida(BaseModel):
             descripcion=m.descripcion,
             categoria_id=m.categoria_id,
             metodo_pago_id=m.metodo_pago_id,
+            tarjeta_id=m.tarjeta_id,
             partes=[
                 ParteSalida(bolsillo=p.ubicacion.bolsillo, objetivo_id=p.ubicacion.objetivo_id, monto=p.monto)
                 for p in m.partes
@@ -126,6 +129,7 @@ class ResumenSalida(BaseModel):
     ingresos_mes: Monto
     gastos_mes: Monto
     objetivos: list[ObjetivoSalida]
+    deuda_tarjetas: Monto
 
     @classmethod
     def desde(cls, r: Resumen) -> "ResumenSalida":
@@ -137,6 +141,7 @@ class ResumenSalida(BaseModel):
             ingresos_mes=r.ingresos_periodo,
             gastos_mes=r.gastos_periodo,
             objetivos=[ObjetivoSalida.desde(o.objetivo, o.apartado) for o in r.objetivos],
+            deuda_tarjetas=r.deuda_tarjetas,
         )
 
 
@@ -177,3 +182,97 @@ class MetodoPagoSalida(BaseModel):
     nombre: str
     tipo: str
     activo: bool
+
+
+# -- Tarjetas de crédito ----------------------------------------------------
+
+
+class TarjetaEntrada(BaseModel):
+    nombre: str = Field(max_length=60)
+    dia_cierre: int
+    dia_vencimiento: int
+
+
+class TarjetaCambios(BaseModel):
+    nombre: str | None = Field(default=None, max_length=60)
+    dia_cierre: int | None = None
+    dia_vencimiento: int | None = None
+    activa: bool | None = None
+
+
+class MesMonto(BaseModel):
+    mes: date
+    monto: Monto
+
+
+class TarjetaSalida(BaseModel):
+    id: UUID
+    nombre: str
+    dia_cierre: int
+    dia_vencimiento: int
+    activa: bool
+    deuda_estimada: Monto
+    resumen_cerrado: Monto
+    resumen_en_curso: Monto
+    mes_en_curso: date
+    proximos: list[MesMonto]
+
+    @classmethod
+    def desde(cls, e: EstadoTarjeta) -> "TarjetaSalida":
+        t = e.tarjeta
+        return cls(
+            id=t.id,
+            nombre=t.nombre,
+            dia_cierre=t.dia_cierre,
+            dia_vencimiento=t.dia_vencimiento,
+            activa=t.activa,
+            deuda_estimada=e.deuda_estimada,
+            resumen_cerrado=e.resumen_cerrado,
+            resumen_en_curso=e.resumen_en_curso,
+            mes_en_curso=e.mes_en_curso,
+            proximos=[MesMonto(mes=mes, monto=monto) for mes, monto in e.proximos],
+        )
+
+
+class CompraTarjetaEntrada(BaseModel):
+    monto: Monto
+    cuotas: int = 1
+    comprado_en: date
+    categoria_id: UUID | None = None
+    descripcion: str | None = Field(default=None, max_length=200)
+
+
+class CuotaSalida(BaseModel):
+    numero: int
+    monto: Monto
+    mes_resumen: date
+
+
+class CompraTarjetaSalida(BaseModel):
+    id: UUID
+    tarjeta_id: UUID
+    descripcion: str | None
+    categoria_id: UUID | None
+    monto_total: Monto
+    cantidad_cuotas: int
+    comprado_en: date
+    cuotas: list[CuotaSalida]
+
+    @classmethod
+    def desde(cls, c: CompraTarjeta) -> "CompraTarjetaSalida":
+        return cls(
+            id=c.id,
+            tarjeta_id=c.tarjeta_id,
+            descripcion=c.descripcion,
+            categoria_id=c.categoria_id,
+            monto_total=c.monto_total,
+            cantidad_cuotas=c.cantidad_cuotas,
+            comprado_en=c.comprado_en,
+            cuotas=[CuotaSalida(numero=q.numero, monto=q.monto, mes_resumen=q.mes_resumen) for q in c.cuotas],
+        )
+
+
+class PagoResumenEntrada(BaseModel):
+    monto: Monto
+    ocurrido_en: datetime
+    origenes: list[OrigenEntrada] | None = Field(default=None, max_length=10)
