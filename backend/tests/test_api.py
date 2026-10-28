@@ -151,3 +151,24 @@ def test_listar_movimientos_del_mes(cliente):
 
     assert respuesta.status_code == 200
     assert [m["tipo"] for m in respuesta.json()] == ["ingreso"]
+
+
+@pytest.mark.parametrize(
+    ("origen", "permitido"),
+    [
+        ("http://192.168.0.15:4200", True),
+        ("http://127.0.0.1:8080", True),
+        ("http://10.0.0.7:4200", True),
+        ("http://172.20.1.2:4200", True),
+        ("https://sitio-ajeno.com", False),
+        ("http://192.168.0.15.sitio-ajeno.com", False),
+    ],
+)
+def test_cors_acepta_solo_la_red_local(origen, permitido):
+    cliente = TestClient(crear_app(con_base_de_datos=False))
+
+    respuesta = cliente.options(
+        "/api/resumen", headers={"Origin": origen, "Access-Control-Request-Method": "GET"}
+    )
+
+    assert (respuesta.headers.get("access-control-allow-origin") == origen) is permitido
