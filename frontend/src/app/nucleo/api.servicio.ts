@@ -5,14 +5,18 @@ import { Observable } from 'rxjs';
 import { entorno } from '../../environments/entorno';
 import {
   Categoria,
+  CompraTarjeta,
   MetodoPago,
   Movimiento,
+  NuevaCompraTarjeta,
   NuevaTransferencia,
   NuevoGasto,
   NuevoIngreso,
   Objetivo,
+  PagoResumen,
   Perfil,
   Resumen,
+  Tarjeta,
   TipoMovimiento,
 } from './modelos';
 
@@ -87,6 +91,34 @@ export class ApiServicio {
 
   actualizarMetodoPago(id: string, activo: boolean): Observable<MetodoPago> {
     return this.http.patch<MetodoPago>(`${this.url}/metodos-pago/${id}`, { activo });
+  }
+
+  tarjetas(): Observable<Tarjeta[]> {
+    return this.http.get<Tarjeta[]>(`${this.url}/tarjetas`);
+  }
+
+  crearTarjeta(datos: { nombre: string; dia_cierre: number; dia_vencimiento: number }): Observable<Tarjeta> {
+    return this.http.post<Tarjeta>(`${this.url}/tarjetas`, datos);
+  }
+
+  actualizarTarjeta(id: string, cambios: Partial<Pick<Tarjeta, 'nombre' | 'dia_cierre' | 'dia_vencimiento' | 'activa'>>): Observable<Tarjeta> {
+    return this.http.patch<Tarjeta>(`${this.url}/tarjetas/${id}`, cambios);
+  }
+
+  comprasTarjeta(id: string): Observable<CompraTarjeta[]> {
+    return this.http.get<CompraTarjeta[]>(`${this.url}/tarjetas/${id}/compras`);
+  }
+
+  registrarCompraTarjeta(id: string, datos: NuevaCompraTarjeta): Observable<CompraTarjeta> {
+    return this.http.post<CompraTarjeta>(`${this.url}/tarjetas/${id}/compras`, datos);
+  }
+
+  eliminarCompraTarjeta(compraId: string): Observable<void> {
+    return this.http.delete<void>(`${this.url}/tarjetas/compras/${compraId}`);
+  }
+
+  pagarResumen(id: string, datos: PagoResumen): Observable<Movimiento> {
+    return this.http.post<Movimiento>(`${this.url}/tarjetas/${id}/pagos`, datos);
   }
 }
 

@@ -53,6 +53,13 @@ import { Movimiento, Resumen } from '../../nucleo/modelos';
           </div>
         </section>
 
+        @if (+r.deuda_tarjetas > 0) {
+          <a routerLink="/tarjetas" class="tarjeta deuda">
+            <span>Tarjetas: debés aprox. <span class="num">{{ r.deuda_tarjetas | monto }}</span></span>
+            <span aria-hidden="true">›</span>
+          </a>
+        }
+
         <section class="seccion" aria-labelledby="ahorros-titulo">
           <div class="seccion-titulo">
             <div class="pila">
@@ -112,6 +119,7 @@ import { Movimiento, Resumen } from '../../nucleo/modelos';
     .objetivo { display: flex; flex-direction: column; gap: 10px; text-decoration: none; color: var(--tinta); }
     .nombre { font-size: 14px; font-weight: 600; }
     .vacio-enlace { text-align: center; color: var(--atenuado); }
+    .deuda { display: flex; justify-content: space-between; align-items: center; min-height: 44px; text-decoration: none; color: var(--tinta); font-size: 14px; font-weight: 500; }
   `,
 })
 export class InicioPagina implements OnInit {

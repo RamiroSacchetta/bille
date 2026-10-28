@@ -17,11 +17,11 @@ Supuestos: cada cuota cae en el resumen según el día de cierre (compra hasta e
 
 | ID | Specs | Ruta | Estado | Commit |
 |----|-------|------|--------|--------|
-| T1 | S1–S4 | inline | en curso | — |
-| T2 | S1–S4 | inline | pendiente | — |
-| T3 | S1–S4 | inline | pendiente | — |
-| T4 | S1–S4 | inline | pendiente | — |
-| T5 | S1–S4 | inline | pendiente | — |
+| T1 | S1–S4 | inline | hecho (pgTAP 19/19) | ea68f69 |
+| T2 | S1–S4 | inline | hecho | 930175f |
+| T3 | S1–S4 | inline | hecho (backend 53 tests) | 930175f |
+| T4 | S1–S4 | inline | hecho (frontend 15 tests) | ver log |
+| T5 | S1–S4 | inline | hecho (prueba en navegador) | ver log |
 
 - T1: migración (tarjetas, compras_tarjeta, cuotas_tarjeta, movimientos.tarjeta_id, RLS) + pgTAP.
 - T2: dominio y casos de uso (cuotas, mes de resumen, deuda estimada, pago de resumen) + tests.
@@ -35,3 +35,5 @@ Ruta: inline (unidades secuenciales).
 
 - **L1** (2026-10-28) Pedido: "Antes de hacer el sprint 2, me gustaría agregar también que puedas seguir gastos de tarjeta de crédito. No sé cómo lo podríamos idear, pero por ejemplo, si pagaste algo en 3 cuotas, que lo puedas tener en algún lado."
 - **L2** (2026-10-28) Diseño cerrado con S2–S4; el usuario aprobó: "Sí, implementalo".
+- **L3** (2026-10-28) `supabase db reset` para aplicar la migración desde cero: se borraron las cuentas de prueba locales (se recrean desde la app).
+- **L4** (2026-10-28) Prueba en navegador: tarjeta Visa (cierre 25), sueldo $ 1.000.000, compra "Heladera" $ 900.000 en 3 cuotas el 28/10 → Tu plata $ 1.000.000, gastos del mes $ 0, "Tarjetas: debés aprox. $ 900.000"; cuotas en nov, dic y ene. Pago de resumen $ 320.000 → Tu plata $ 680.000, gastos del mes $ 320.000, deuda $ 580.000. Sin errores en consola.

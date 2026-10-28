@@ -66,4 +66,5 @@ Los tests de integración del backend se saltean si Supabase local no está corr
 - Los **objetivos** son apartados dentro de ahorros; lo que no está apartado es **ahorro libre**.
 - Mandar a ahorros, pasar a disponible, apartar o devolver son **transferencias**: no cuentan como gasto.
 - Un **gasto se puede dividir** entre plata del mes, ahorro libre y objetivos. En el balance del mes es un solo gasto; cada bolsillo muestra solo su parte.
+- Las **compras con tarjeta de crédito** no descuentan de tu plata: se acumulan en la tarjeta como deuda estimada, repartida en cuotas según el día de cierre. Lo que descuenta, y cuenta como gasto del mes, es el **pago del resumen** que cargás. Si pagás menos, el resto queda pendiente.
 - Ningún saldo puede quedar en negativo.

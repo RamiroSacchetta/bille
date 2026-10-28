@@ -8,6 +8,7 @@ import { ApiServicio, mensajeDeError } from '../../nucleo/api.servicio';
 import { CatalogoStore } from '../../nucleo/catalogo.store';
 import { claveMes, fechaParaApi, hoyLocal, montoDesdeTexto } from '../../nucleo/formato';
 import { Movimiento, Resumen } from '../../nucleo/modelos';
+import { textoCuotas } from '../tarjetas/cuotas';
 import { Origen, estadoDivision, origenesParaApi } from './division';
 
 type Tipo = 'gasto' | 'ingreso';
@@ -50,12 +51,39 @@ type Tipo = 'gasto' | 'ingreso';
           <legend>{{ tipo() === 'gasto' ? 'Pagado con' : 'Cobrado en' }}</legend>
           <div class="chips">
             @for (metodo of metodos(); track metodo.id) {
-              <button type="button" class="chip" [attr.aria-pressed]="metodoId() === metodo.id" (click)="metodoId.set(metodo.id)">
+              <button type="button" class="chip" [attr.aria-pressed]="metodoId() === metodo.id" (click)="elegirMetodo(metodo.id)">
                 {{ metodo.nombre }}
               </button>
             }
+            @if (tipo() === 'gasto') {
+              @for (tarjeta of tarjetas(); track tarjeta.id) {
+                <button type="button" class="chip" [attr.aria-pressed]="tarjetaId() === tarjeta.id" (click)="elegirTarjeta(tarjeta.id)">
+                  {{ tarjeta.nombre }} · crédito
+                </button>
+              }
+            }
           </div>
+          @if (tipo() === 'gasto' && !tarjetas().length) {
+            <a routerLink="/tarjetas" class="atenuado chico">Agregar una tarjeta de crédito</a>
+          }
         </fieldset>
+
+        @if (tarjetaId()) {
+          <fieldset>
+            <legend>Cuotas</legend>
+            <div class="chips">
+              @for (opcion of opcionesCuotas; track opcion) {
+                <button type="button" class="chip" [attr.aria-pressed]="cuotas() === opcion" (click)="cuotas.set(opcion)">{{ opcion }}</button>
+              }
+              <label class="otra">
+                <span class="solo-lectores">Otra cantidad de cuotas</span>
+                <input id="carga-cuotas" name="cuotas" type="number" min="1" max="60" placeholder="Otra"
+                  [ngModel]="opcionesCuotas.includes(cuotas()) ? null : cuotas()" (ngModelChange)="cuotas.set(+$event || 1)" />
+              </label>
+            </div>
+            <p class="atenuado chico aviso">{{ vistaCuotas() }} · se suma a la tarjeta, no descuenta de tu plata hasta que pagues el resumen.</p>
+          </fieldset>
+        }
 
         <div class="fila">
           <label class="campo">Fecha
@@ -74,7 +102,7 @@ type Tipo = 'gasto' | 'ingreso';
               <button type="button" [attr.aria-pressed]="destino() === 'ahorros'" (click)="destino.set('ahorros')">Ahorros</button>
             </div>
           </fieldset>
-        } @else {
+        } @else if (!tarjetaId()) {
           <fieldset>
             <legend>Sale de</legend>
             @if (!dividir()) {
@@ -128,6 +156,8 @@ type Tipo = 'gasto' | 'ingreso';
     .chico { font-size: 12px; }
     .estado { margin: 0; text-align: center; font-weight: 600; color: var(--gasto); }
     .estado.cuadra { color: var(--ingreso); }
+    .otra input { width: 84px; min-height: 44px; border: 1px solid var(--linea); border-radius: 22px; padding: 0 12px; font: inherit; font-size: 14px; }
+    .aviso { margin: 0; }
   `,
 })
 export class CargaPagina implements OnInit {
@@ -139,6 +169,10 @@ export class CargaPagina implements OnInit {
   readonly montoTexto = signal('');
   readonly categoriaId = signal<string | null>(null);
   readonly metodoId = signal<string | null>(null);
+  // Con tarjeta de crédito la compra se acumula en la tarjeta y no descuenta de tu plata
+  readonly tarjetaId = signal<string | null>(null);
+  readonly cuotas = signal(1);
+  readonly opcionesCuotas = [1, 3, 6, 12];
   readonly fecha = signal(hoyLocal());
   readonly nota = signal('');
   readonly destino = signal<'disponible' | 'ahorros'>('disponible');
@@ -150,7 +184,9 @@ export class CargaPagina implements OnInit {
 
   readonly categorias = computed(() => this.catalogo.categorias().filter((c) => c.tipo === this.tipo()));
   readonly metodos = computed(() => this.catalogo.metodos().filter((m) => m.activo));
+  readonly tarjetas = this.catalogo.tarjetasActivas;
   readonly monto = computed(() => Number(montoDesdeTexto(this.montoTexto()) ?? 0));
+  readonly vistaCuotas = computed(() => textoCuotas(this.monto(), this.cuotas()) || 'Escribí el monto');
 
   readonly origenes = computed<Origen[]>(() => {
     const resumen = this.resumen();
@@ -178,6 +214,18 @@ export class CargaPagina implements OnInit {
   cambiarTipo(tipo: Tipo): void {
     this.tipo.set(tipo);
     this.categoriaId.set(null);
+    this.dividir.set(false);
+    this.tarjetaId.set(null);
+  }
+
+  elegirMetodo(id: string): void {
+    this.metodoId.set(id);
+    this.tarjetaId.set(null);
+  }
+
+  elegirTarjeta(id: string): void {
+    this.tarjetaId.set(id);
+    this.metodoId.set(null);
     this.dividir.set(false);
   }
 
@@ -214,6 +262,23 @@ export class CargaPagina implements OnInit {
       categoria_id: this.categoriaId(),
       metodo_pago_id: this.metodoId(),
     };
+    const tarjetaId = this.tarjetaId();
+    if (this.tipo() === 'gasto' && tarjetaId) {
+      if (!Number.isInteger(this.cuotas()) || this.cuotas() < 1 || this.cuotas() > 60) {
+        this.error.set('Las cuotas tienen que ser entre 1 y 60.');
+        return;
+      }
+      this.enviar(
+        this.api.registrarCompraTarjeta(tarjetaId, {
+          monto,
+          cuotas: this.cuotas(),
+          comprado_en: this.fecha(),
+          categoria_id: this.categoriaId(),
+          descripcion: base.descripcion,
+        }),
+      );
+      return;
+    }
     const pedido: Observable<Movimiento> =
       this.tipo() === 'gasto'
         ? this.api.registrarGasto({
@@ -221,7 +286,10 @@ export class CargaPagina implements OnInit {
             origenes: this.dividir() ? origenesParaApi(this.origenes(), this.montosOrigen()) : null,
           })
         : this.api.registrarIngreso({ ...base, destino: { bolsillo: this.destino() } });
+    this.enviar(pedido);
+  }
 
+  private enviar(pedido: Observable<unknown>): void {
     this.guardando.set(true);
     this.error.set(null);
     pedido.subscribe({

@@ -39,6 +39,11 @@ export const routes: Routes = [
         loadComponent: () => import('./funcionalidades/ahorros/objetivo.pagina').then((m) => m.ObjetivoPagina),
       },
       {
+        path: 'tarjetas',
+        title: 'Bille · Tarjetas',
+        loadComponent: () => import('./funcionalidades/tarjetas/tarjetas.pagina').then((m) => m.TarjetasPagina),
+      },
+      {
         path: 'ajustes',
         title: 'Bille · Ajustes',
         loadComponent: () => import('./funcionalidades/ajustes/ajustes.pagina').then((m) => m.AjustesPagina),

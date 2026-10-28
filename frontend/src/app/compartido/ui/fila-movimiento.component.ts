@@ -62,6 +62,7 @@ export class FilaMovimientoComponent {
   readonly detalle = computed(() => {
     const m = this.movimiento();
     if (m.tipo === 'transferencia') return 'Transferencia · no cuenta como gasto';
+    if (m.tarjeta_id) return 'Pago de tarjeta de crédito';
     const partes = [this.nombreCategoria() ?? (m.tipo === 'gasto' ? 'Gasto' : 'Ingreso')];
     if (m.tipo === 'gasto' && m.partes.length > 1) partes.push(origenesDeGasto(m));
     else if (m.tipo === 'gasto' && m.partes[0]?.bolsillo === 'ahorros') partes.push('Pagado con ahorros');

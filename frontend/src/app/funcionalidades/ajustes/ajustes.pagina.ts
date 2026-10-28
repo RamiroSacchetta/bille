@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 
 import { NavegacionComponent } from '../../compartido/ui/navegacion.component';
 import { ApiServicio, mensajeDeError } from '../../nucleo/api.servicio';
@@ -19,7 +19,7 @@ const TIPOS_METODO: Record<string, string> = {
 /** Ajustes: nombre, categorías, métodos de pago y cerrar sesión. */
 @Component({
   selector: 'bi-ajustes',
-  imports: [FormsModule, NavegacionComponent],
+  imports: [FormsModule, RouterLink, NavegacionComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <main class="pantalla">
@@ -69,6 +69,8 @@ const TIPOS_METODO: Record<string, string> = {
         </ul>
       </section>
 
+      <a routerLink="/tarjetas" class="tarjeta enlace">Tarjetas de crédito <span aria-hidden="true">›</span></a>
+
       @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
       @if (aviso()) { <p class="atenuado" role="status">{{ aviso() }}</p> }
 
@@ -89,6 +91,7 @@ const TIPOS_METODO: Record<string, string> = {
     .metodo input { width: 22px; height: 22px; accent-color: var(--bosque); }
     .pila { display: flex; flex-direction: column; gap: 2px; }
     .chico { font-size: 12px; }
+    .enlace { display: flex; justify-content: space-between; align-items: center; min-height: 44px; text-decoration: none; color: var(--tinta); font-weight: 500; }
   `,
 })
 export class AjustesPagina implements OnInit {

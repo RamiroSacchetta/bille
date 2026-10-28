@@ -20,6 +20,7 @@ export interface Movimiento {
   descripcion: string | null;
   categoria_id: string | null;
   metodo_pago_id: string | null;
+  tarjeta_id?: string | null;
   partes: Parte[];
 }
 
@@ -37,6 +38,7 @@ export interface Resumen {
   ingresos_mes: string;
   gastos_mes: string;
   objetivos: Objetivo[];
+  deuda_tarjetas: string;
 }
 
 export interface Categoria {
@@ -80,4 +82,46 @@ export interface NuevoIngreso extends NuevoMovimientoBase {
 export interface NuevaTransferencia extends NuevoMovimientoBase {
   desde: Ubicacion;
   hacia: Ubicacion;
+}
+
+export interface Tarjeta {
+  id: string;
+  nombre: string;
+  dia_cierre: number;
+  dia_vencimiento: number;
+  activa: boolean;
+  deuda_estimada: string;
+  resumen_cerrado: string;
+  resumen_en_curso: string;
+  mes_en_curso: string;
+  proximos: { mes: string; monto: string }[];
+}
+
+export interface Cuota {
+  numero: number;
+  monto: string;
+  mes_resumen: string;
+}
+
+export interface CompraTarjeta {
+  id: string;
+  tarjeta_id: string;
+  descripcion: string | null;
+  categoria_id: string | null;
+  monto_total: string;
+  cantidad_cuotas: number;
+  comprado_en: string;
+  cuotas: Cuota[];
+}
+
+export interface NuevaCompraTarjeta {
+  monto: string;
+  cuotas: number;
+  comprado_en: string;
+  categoria_id?: string | null;
+  descripcion?: string | null;
+}
+
+export interface PagoResumen extends NuevoMovimientoBase {
+  origenes?: Parte[] | null;
 }
