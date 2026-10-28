@@ -23,12 +23,12 @@ Supuestos (no pedidos explícitamente): transferencias entre bolsillos no cuenta
 | ID | Specs | Ruta | Estado | Commit |
 |----|-------|------|--------|--------|
 | T1 | S3 | inline | hecho | 8daecb4 |
-| T2 | S1, S4–S7 | inline | escrito, sin verificar (falta Docker) | — |
+| T2 | S1, S4–S7 | inline | hecho (pgTAP 12/12) | 21a072b |
 | T3 | S4–S7 | inline | hecho (21 tests) | f12bee7 |
-| T4 | S1, S2 | inline | hecho con almacén en memoria (30 tests); falta prueba contra Postgres | e5cd582 |
+| T4 | S1, S2 | inline | hecho (30 tests + 4 de integración contra Postgres) | e5cd582, f1171d6 |
 | T5 | S1, S8, S9 | inline | hecho (build ok) | 4ff8d68 |
 | T6 | S2, S4–S7, S9 | inline | hecho (8 tests de formato y división) | 4ff8d68 |
-| T7 | S1–S7 | inline | pendiente (falta Docker) | — |
+| T7 | S1–S7 | inline | hecho (prueba manual en el navegador con dos cuentas) | 582f2bb |
 
 - T1: repo, `.gitignore`, README, Supabase CLI local (`supabase init`).
 - T2: migración SQL (tablas, RLS, trigger de cuadre de partes, seed al crear perfil).
@@ -47,4 +47,5 @@ Ruta: todas inline (sin razón de escritor delegado: unidades secuenciales y dep
 - **L3** (2026-10-28) Decisión técnica: las migraciones viven en `supabase/migrations` (SQL) en lugar de Alembic, porque referencian `auth.users`, RLS y triggers.
 - **L4** (2026-10-28) Decisión técnica: el backend usa psycopg 3 con SQL explícito (sin SQLAlchemy). Cada request toma `role authenticated` y fija `request.jwt.claims`, así RLS aplica también al backend. El commit se hace dentro del endpoint para que el error del cuadre diferido llegue al manejador HTTP.
 - **L5** (2026-10-28) Bloqueo: Docker Desktop no arranca (el backend se cae al no poder borrar `AppData/Local/Docker/run/sailor-ingest.sock`). Sin Docker no se puede levantar Supabase local, correr `supabase test db` (pgTAP en `supabase/tests/database/esquema.test.sql`) ni la prueba de punta a punta. Tests del front: Karma necesita `CHROME_BIN` apuntando a Edge (`C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe`).
-- **L6** (2026-10-28) Próximo paso: con Docker andando, `npm run bd:iniciar`, `npx supabase test db`, verificar que `supabase status` coincida con la clave anónima y el secreto JWT de `frontend/src/environments/entorno.ts` y `backend/app/config.py`, levantar backend y frontend y probar con dos cuentas.
+- **L7** (2026-10-28) El usuario reinició Docker. `supabase start` aplicó la migración; la clave anónima y el secreto JWT coinciden con los valores por defecto. pgTAP 12/12, backend 34 tests (30 unitarios + 4 de integración), frontend 8 tests. Prueba en el navegador (375×812): registro de Ana, sueldo $ 1.250.000, mandar $ 400.000 a ahorros, objetivo "Viaje a Bariloche", apartar $ 100.000, gasto "Arreglo del auto" $ 100.000 dividido 50.000 mes + 30.000 libre + 20.000 viaje → total $ 1.150.000, para gastar $ 800.000, ahorrado $ 350.000, libre $ 270.000, viaje $ 80.000, gastos del mes $ 100.000. Beto, recién registrado, ve todo en cero. Sin errores en consola.
+- **L6** (2026-10-28) Próximo paso (resuelto en L7): con Docker andando, `npm run bd:iniciar`, `npx supabase test db`, verificar que `supabase status` coincida con la clave anónima y el secreto JWT de `frontend/src/environments/entorno.ts` y `backend/app/config.py`, levantar backend y frontend y probar con dos cuentas.
