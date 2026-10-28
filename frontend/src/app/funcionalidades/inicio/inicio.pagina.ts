@@ -7,6 +7,7 @@ import { FilaMovimientoComponent } from '../../compartido/ui/fila-movimiento.com
 import { NavegacionComponent } from '../../compartido/ui/navegacion.component';
 import { ApiServicio, mensajeDeError } from '../../nucleo/api.servicio';
 import { CatalogoStore } from '../../nucleo/catalogo.store';
+import { ColaOfflineServicio } from '../../nucleo/cola-offline';
 import { claveMes, moverMes, nombreMes } from '../../nucleo/formato';
 import { Movimiento, Resumen } from '../../nucleo/modelos';
 
@@ -30,6 +31,24 @@ import { Movimiento, Resumen } from '../../nucleo/modelos';
       </header>
 
       @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+
+      @if (cola.delUsuario().length) {
+        <section class="tarjeta pendientes" aria-labelledby="pendientes-titulo" role="status">
+          <div class="seccion-titulo">
+            <h2 id="pendientes-titulo">{{ cola.delUsuario().length === 1 ? '1 carga sin enviar' : cola.delUsuario().length + ' cargas sin enviar' }}</h2>
+            <button type="button" class="boton" (click)="reintentar()">Enviar ahora</button>
+          </div>
+          <p class="atenuado chico">Las hiciste sin conexión. Se envían solas cuando vuelve internet.</p>
+          @for (c of cola.delUsuario(); track c.id) {
+            @if (c.error) {
+              <div class="rechazada">
+                <span class="error">{{ c.datos.descripcion || 'Carga' }} de {{ c.datos.monto | monto }}: {{ c.error }}</span>
+                <button type="button" class="boton" (click)="cola.descartar(c.id)">Descartar</button>
+              </div>
+            }
+          }
+        </section>
+      }
 
       @if (resumen(); as r) {
         <section class="destacado" aria-label="Tu plata">
@@ -96,7 +115,7 @@ import { Movimiento, Resumen } from '../../nucleo/modelos';
                 [nombreMetodo]="catalogo.nombresMetodo().get(m.metodo_pago_id ?? '') ?? null" /></li>
             }
           </ul>
-        } @else {
+        } @else if (!error()) {
           <p class="vacio">Todavía no cargaste movimientos este mes. Tocá + para agregar el primero.</p>
         }
       </section>
@@ -119,12 +138,17 @@ import { Movimiento, Resumen } from '../../nucleo/modelos';
     .objetivo { display: flex; flex-direction: column; gap: 10px; text-decoration: none; color: var(--tinta); }
     .nombre { font-size: 14px; font-weight: 600; }
     .vacio-enlace { text-align: center; color: var(--atenuado); }
+    .pendientes { display: flex; flex-direction: column; gap: 8px; border-color: var(--gasto-claro); }
+    .pendientes .chico { margin: 0; }
+    .rechazada { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .rechazada .error { flex: 1; min-width: 180px; font-size: 13px; }
     .deuda { display: flex; justify-content: space-between; align-items: center; min-height: 44px; text-decoration: none; color: var(--tinta); font-size: 14px; font-weight: 500; }
   `,
 })
 export class InicioPagina implements OnInit {
   private readonly api = inject(ApiServicio);
   readonly catalogo = inject(CatalogoStore);
+  readonly cola = inject(ColaOfflineServicio);
 
   readonly mes = signal(claveMes());
   readonly resumen = signal<Resumen | null>(null);
@@ -135,8 +159,15 @@ export class InicioPagina implements OnInit {
 
   ngOnInit(): void {
     this.catalogo.cargar();
-    this.api.perfil().subscribe((perfil) => this.nombre.set(perfil.nombre_visible));
     this.cargar();
+    this.reintentar();
+  }
+
+  /** Envía lo que se cargó sin conexión y actualiza los números. */
+  async reintentar(): Promise<void> {
+    const antes = this.cola.delUsuario().length;
+    await this.cola.sincronizar();
+    if (this.cola.delUsuario().length !== antes) this.cargar();
   }
 
   saludo(): string {
@@ -153,6 +184,7 @@ export class InicioPagina implements OnInit {
 
   private cargar(): void {
     this.error.set(null);
+    this.api.perfil().subscribe({ next: (perfil) => this.nombre.set(perfil.nombre_visible), error: () => {} });
     this.api.resumen(this.mes()).subscribe({
       next: (resumen) => this.resumen.set(resumen),
       error: (error) => this.error.set(mensajeDeError(error)),

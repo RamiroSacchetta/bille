@@ -6,8 +6,9 @@ import { Observable } from 'rxjs';
 import { MontoPipe } from '../../compartido/monto.pipe';
 import { ApiServicio, mensajeDeError } from '../../nucleo/api.servicio';
 import { CatalogoStore } from '../../nucleo/catalogo.store';
+import { ColaOfflineServicio, NuevaCargaPendiente, esErrorDeRed } from '../../nucleo/cola-offline';
 import { claveMes, fechaParaApi, hoyLocal, montoDesdeTexto } from '../../nucleo/formato';
-import { Movimiento, Resumen } from '../../nucleo/modelos';
+import { Resumen } from '../../nucleo/modelos';
 import { textoCuotas } from '../tarjetas/cuotas';
 import { Origen, estadoDivision, origenesParaApi } from './division';
 
@@ -164,6 +165,7 @@ export class CargaPagina implements OnInit {
   private readonly api = inject(ApiServicio);
   private readonly router = inject(Router);
   private readonly catalogo = inject(CatalogoStore);
+  private readonly cola = inject(ColaOfflineServicio);
 
   readonly tipo = signal<Tipo>('gasto');
   readonly montoTexto = signal('');
@@ -268,33 +270,40 @@ export class CargaPagina implements OnInit {
         this.error.set('Las cuotas tienen que ser entre 1 y 60.');
         return;
       }
-      this.enviar(
-        this.api.registrarCompraTarjeta(tarjetaId, {
-          monto,
-          cuotas: this.cuotas(),
-          comprado_en: this.fecha(),
-          categoria_id: this.categoriaId(),
-          descripcion: base.descripcion,
-        }),
-      );
+      const datos = {
+        monto,
+        cuotas: this.cuotas(),
+        comprado_en: this.fecha(),
+        categoria_id: this.categoriaId(),
+        descripcion: base.descripcion,
+      };
+      this.enviar(this.api.registrarCompraTarjeta(tarjetaId, datos), { tipo: 'compra_tarjeta', tarjetaId, datos });
       return;
     }
-    const pedido: Observable<Movimiento> =
-      this.tipo() === 'gasto'
-        ? this.api.registrarGasto({
-            ...base,
-            origenes: this.dividir() ? origenesParaApi(this.origenes(), this.montosOrigen()) : null,
-          })
-        : this.api.registrarIngreso({ ...base, destino: { bolsillo: this.destino() } });
-    this.enviar(pedido);
+    if (this.tipo() === 'gasto') {
+      const datos = {
+        ...base,
+        origenes: this.dividir() ? origenesParaApi(this.origenes(), this.montosOrigen()) : null,
+      };
+      this.enviar(this.api.registrarGasto(datos), { tipo: 'gasto', datos });
+    } else {
+      const datos = { ...base, destino: { bolsillo: this.destino() } };
+      this.enviar(this.api.registrarIngreso(datos), { tipo: 'ingreso', datos });
+    }
   }
 
-  private enviar(pedido: Observable<unknown>): void {
+  /** Envía la carga; si no hay conexión la guarda en el dispositivo para enviarla después. */
+  private enviar(pedido: Observable<unknown>, pendiente: NuevaCargaPendiente): void {
     this.guardando.set(true);
     this.error.set(null);
     pedido.subscribe({
       next: () => this.router.navigateByUrl('/'),
-      error: (error) => {
+      error: async (error) => {
+        if (esErrorDeRed(error)) {
+          await this.cola.agregar(pendiente);
+          await this.router.navigateByUrl('/');
+          return;
+        }
         this.guardando.set(false);
         this.error.set(mensajeDeError(error));
       },

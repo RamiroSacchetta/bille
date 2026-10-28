@@ -11,6 +11,7 @@ export class AutenticacionServicio {
   private readonly lista: Promise<void>;
 
   readonly autenticado = computed(() => this.sesion() !== null);
+  readonly usuarioId = computed(() => this.sesion()?.user.id ?? null);
 
   constructor() {
     this.lista = this.cliente.auth.getSession().then(({ data }) => this.sesion.set(data.session));
