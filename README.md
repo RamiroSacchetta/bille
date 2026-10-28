@@ -33,14 +33,32 @@ npm run bd:iniciar
 ```
 
 ```bash
-uv run --directory backend uvicorn app.main:app --port 8000
+uv run --directory backend uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
 ```bash
-npm --prefix frontend start
+npm --prefix frontend run produccion
 ```
 
-Abrí http://127.0.0.1:4200 (o http://localhost:4200) y creá una cuenta por persona. Supabase Studio queda en http://127.0.0.1:54323 y los emails de prueba en http://127.0.0.1:54324.
+Abrí http://127.0.0.1:8080 y creá una cuenta por persona. Supabase Studio queda en http://127.0.0.1:54323 y los emails de prueba en http://127.0.0.1:54324.
+
+Para desarrollar con recarga automática, en lugar de `produccion` usá `npm --prefix frontend start` y abrí http://127.0.0.1:4200 (sin service worker, así que no se instala ni funciona offline).
+
+### Instalar en la PC
+
+Con la versión de producción abierta en http://127.0.0.1:8080, en Chrome, Edge o Brave usá el ícono de instalar de la barra de direcciones (o el menú → "Instalar Bille"). Queda como una app con su propia ventana. Funciona sin conexión: lo que cargues se guarda en la PC y se envía solo cuando vuelve la red.
+
+### Usar desde el celular (misma red Wi-Fi)
+
+1. Averiguá la IP de la PC con `ipconfig` (por ejemplo `192.168.0.10`).
+2. En el celular abrí `http://192.168.0.10:8080`.
+3. La primera vez, Windows puede pedir permiso para que Node, Python y Docker reciban conexiones: aceptá solo para **redes privadas**. Tienen que poder entrar los puertos 8080 (app), 8000 (API) y 54321 (Supabase).
+
+En el celular Bille se usa desde el navegador: instalarla y usarla sin conexión requiere HTTPS, que llega con el despliegue en la nube (Sprint 4). Mientras tanto, cualquiera en tu Wi-Fi puede ver la pantalla de ingreso; los datos siguen protegidos por la cuenta de cada uno.
+
+### Exportar a Excel
+
+En Movimientos, "Exportar CSV" descarga los movimientos del mes elegido, listos para abrir en Excel (separador punto y coma, coma decimal).
 
 Los valores de conexión locales (`backend/app/config.py` y `frontend/src/environments/entorno.ts`) son los que muestra `npx supabase status`. Para cambiarlos en el backend, creá `backend/.env` con `URL_BASE_DATOS`, `SUPABASE_URL` o `SUPABASE_JWT_SECRET`.
 
