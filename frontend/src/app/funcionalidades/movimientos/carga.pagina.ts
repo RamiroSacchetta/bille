@@ -78,7 +78,7 @@ type Tipo = 'gasto' | 'ingreso';
           <fieldset>
             <legend>Sale de</legend>
             @if (!dividir()) {
-              <button type="button" class="boton sale-de" (click)="activarDivision()">
+              <button type="button" class="boton sale-de" (click)="activarDivision()" aria-label="Sale de la plata del mes. Dividir el pago">
                 <span>Plata del mes</span><span>Dividir ›</span>
               </button>
             } @else {
