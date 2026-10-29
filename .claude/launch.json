@@ -29,6 +29,21 @@
       "port": 4200
     },
     {
+      "name": "frontend-alternativo",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "frontend",
+        "run",
+        "start",
+        "--",
+        "--port",
+        "4300"
+      ],
+      "port": 4300,
+      "autoPort": false
+    },
+    {
       "name": "produccion",
       "runtimeExecutable": "npm",
       "runtimeArgs": [
