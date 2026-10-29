@@ -130,6 +130,7 @@ class ResumenSalida(BaseModel):
     gastos_mes: Monto
     objetivos: list[ObjetivoSalida]
     deuda_tarjetas: Monto
+    proximo_resumen_tarjetas: Monto
 
     @classmethod
     def desde(cls, r: Resumen) -> "ResumenSalida":
@@ -142,6 +143,7 @@ class ResumenSalida(BaseModel):
             gastos_mes=r.gastos_periodo,
             objetivos=[ObjetivoSalida.desde(o.objetivo, o.apartado) for o in r.objetivos],
             deuda_tarjetas=r.deuda_tarjetas,
+            proximo_resumen_tarjetas=r.proximo_resumen_tarjetas,
         )
 
 

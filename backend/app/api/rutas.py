@@ -75,7 +75,7 @@ def salud() -> dict:
 def resumen(usuario: UsuarioActual, abrir: Abrir, mes: str = Query(pattern=PATRON_MES)):
     desde, hasta = _limites_mes(mes)
     with abrir() as almacen:
-        return ResumenSalida.desde(cu.consultar_resumen(almacen, usuario, desde, hasta))
+        return ResumenSalida.desde(cu.consultar_resumen(almacen, usuario, desde, hasta, _hoy()))
 
 
 # -- Movimientos ------------------------------------------------------------

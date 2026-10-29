@@ -148,10 +148,52 @@ def test_el_inicio_muestra_la_deuda_de_las_tarjetas(almacen, usuario, visa):
     ct.registrar_compra(almacen, usuario, visa.id, D(900_000), 3, HOY)
     ct.pagar_resumen(almacen, usuario, visa.id, D(100_000), AHORA)
 
-    resumen = cu.consultar_resumen(almacen, usuario, INICIO_MES, FIN_MES)
+    resumen = cu.consultar_resumen(almacen, usuario, INICIO_MES, FIN_MES, HOY)
 
     assert resumen.deuda_tarjetas == D(800_000)
     assert resumen.saldos.total == D(900_000)
+
+
+def _proximo(almacen, usuario):
+    return ct.estado_tarjetas(almacen, usuario, HOY)[0].proximo_resumen
+
+
+def test_el_proximo_resumen_es_el_cerrado_mientras_no_se_pague(almacen, usuario, visa):
+    ct.registrar_compra(almacen, usuario, visa.id, D(900_000), 3, date(2026, 10, 10))
+    ct.registrar_compra(almacen, usuario, visa.id, D(50_000), 1, date(2026, 10, 27))
+
+    assert _proximo(almacen, usuario) == D(300_000)  # cerró el 25: la primera cuota de la heladera
+
+    ct.pagar_resumen(almacen, usuario, visa.id, D(100_000), AHORA)
+    assert _proximo(almacen, usuario) == D(200_000)  # pagó menos: falta el resto
+
+    ct.pagar_resumen(almacen, usuario, visa.id, D(200_000), AHORA)
+    assert _proximo(almacen, usuario) == D(350_000)  # pagado: ahora es el que está en curso
+
+
+def test_el_proximo_resumen_suma_lo_atrasado(almacen, usuario, visa):
+    ct.registrar_compra(almacen, usuario, visa.id, D(80_000), 1, date(2026, 9, 10))
+    ct.registrar_compra(almacen, usuario, visa.id, D(20_000), 1, date(2026, 10, 10))
+
+    assert _proximo(almacen, usuario) == D(100_000)
+
+
+def test_sin_cuotas_pendientes_no_hay_proximo_resumen(almacen, usuario, visa):
+    ct.registrar_compra(almacen, usuario, visa.id, D(1000), 1, HOY)
+    ct.pagar_resumen(almacen, usuario, visa.id, D(5000), AHORA)
+
+    assert _proximo(almacen, usuario) == D(0)
+
+
+def test_el_inicio_muestra_el_proximo_resumen_de_todas_las_tarjetas(almacen, usuario, visa):
+    master = ct.crear_tarjeta(almacen, usuario, "Master", dia_cierre=10, dia_vencimiento=20)
+    ct.registrar_compra(almacen, usuario, visa.id, D(900_000), 3, date(2026, 10, 10))
+    ct.registrar_compra(almacen, usuario, master.id, D(40_000), 2, date(2026, 10, 5))
+
+    resumen = cu.consultar_resumen(almacen, usuario, INICIO_MES, FIN_MES, HOY)
+
+    assert resumen.proximo_resumen_tarjetas == D(320_000)
+    assert resumen.deuda_tarjetas == D(940_000)
 
 
 def test_tarjeta_desactivada_no_acepta_compras(almacen, usuario, visa):

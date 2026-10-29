@@ -17,6 +17,7 @@ from app.dominio.modelos import (
     Ubicacion,
 )
 from app.dominio.puertos import Almacen
+from app.dominio.tarjetas import calcular_estado
 
 # ---------------------------------------------------------------------------
 # Movimientos
@@ -223,9 +224,12 @@ class Resumen:
     objetivos: list[ResumenObjetivo]
     # Estimación de lo que se debe en tarjetas: no forma parte de "Tu plata"
     deuda_tarjetas: Decimal = Decimal(0)
+    proximo_resumen_tarjetas: Decimal = Decimal(0)
 
 
-def consultar_resumen(almacen: Almacen, usuario_id: UUID, desde: datetime, hasta: datetime) -> Resumen:
+def consultar_resumen(
+    almacen: Almacen, usuario_id: UUID, desde: datetime, hasta: datetime, hoy: date
+) -> Resumen:
     if desde >= hasta:
         raise DatosInvalidos("El período no es válido")
     saldos = almacen.saldos(usuario_id)
@@ -235,18 +239,20 @@ def consultar_resumen(almacen: Almacen, usuario_id: UUID, desde: datetime, hasta
         for objetivo in almacen.listar_objetivos(usuario_id)
         if not objetivo.archivado
     ]
-    deuda = sum(
-        (
-            max(
-                sum(almacen.cuotas_por_mes(usuario_id, t.id).values(), Decimal(0))
-                - almacen.pagado_tarjeta(usuario_id, t.id),
-                Decimal(0),
-            )
-            for t in almacen.listar_tarjetas(usuario_id)
-        ),
-        Decimal(0),
+    tarjetas = [
+        calcular_estado(
+            t, almacen.cuotas_por_mes(usuario_id, t.id), almacen.pagado_tarjeta(usuario_id, t.id), hoy
+        )
+        for t in almacen.listar_tarjetas(usuario_id)
+    ]
+    return Resumen(
+        saldos,
+        ingresos,
+        gastos,
+        objetivos,
+        sum((t.deuda_estimada for t in tarjetas), Decimal(0)),
+        sum((t.proximo_resumen for t in tarjetas), Decimal(0)),
     )
-    return Resumen(saldos, ingresos, gastos, objetivos, deuda)
 
 
 def ubicacion(bolsillo: Bolsillo, objetivo_id: UUID | None = None) -> Ubicacion:

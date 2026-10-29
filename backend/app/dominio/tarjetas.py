@@ -52,6 +52,8 @@ class EstadoTarjeta:
     resumen_en_curso: Decimal
     mes_en_curso: date
     proximos: list[tuple[date, Decimal]] = field(default_factory=list)
+    # Lo que falta pagar del próximo resumen, el que se suele pagar con el sueldo que viene
+    proximo_resumen: Decimal = Decimal(0)
 
 
 def validar_dia(dia: int, nombre: str) -> int:
@@ -89,6 +91,25 @@ def dividir_en_cuotas(total: Decimal, cantidad: int, primer_mes: date) -> list[C
     ]
 
 
+def proximo_resumen(cuotas_por_mes: dict[date, Decimal], pagado: Decimal, cerrado: date) -> Decimal:
+    """Lo que falta pagar del próximo resumen.
+
+    Los pagos cubren primero los resúmenes más viejos. Mientras quede algo del último resumen cerrado
+    (o de los anteriores), el próximo es ese; si ya está pago, el primero que tenga cuotas pendientes.
+    """
+    restante = pagado
+    pendientes: list[tuple[date, Decimal]] = []
+    for mes in sorted(cuotas_por_mes):
+        cubierto = min(restante, cuotas_por_mes[mes])
+        restante -= cubierto
+        if cuotas_por_mes[mes] > cubierto:
+            pendientes.append((mes, cuotas_por_mes[mes] - cubierto))
+    if not pendientes:
+        return Decimal(0)
+    hasta = max(cerrado, pendientes[0][0])
+    return sum((monto for mes, monto in pendientes if mes <= hasta), Decimal(0))
+
+
 def calcular_estado(
     tarjeta: Tarjeta, cuotas_por_mes: dict[date, Decimal], pagado: Decimal, hoy: date, meses_proximos: int = 6
 ) -> EstadoTarjeta:
@@ -106,4 +127,5 @@ def calcular_estado(
             for mes in (sumar_meses(en_curso, n) for n in range(1, meses_proximos + 1))
             if mes in cuotas_por_mes
         ],
+        proximo_resumen=proximo_resumen(cuotas_por_mes, pagado, sumar_meses(en_curso, -1)),
     )

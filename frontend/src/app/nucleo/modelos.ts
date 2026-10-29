@@ -39,6 +39,7 @@ export interface Resumen {
   gastos_mes: string;
   objetivos: Objetivo[];
   deuda_tarjetas: string;
+  proximo_resumen_tarjetas: string;
 }
 
 export interface Categoria {

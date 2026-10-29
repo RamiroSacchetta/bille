@@ -53,10 +53,10 @@ import { Movimiento, Resumen } from '../../nucleo/modelos';
       @if (resumen(); as r) {
         <section class="destacado" aria-label="Tu plata">
           <div class="pila">
-            <span class="etiqueta">Tu plata · ARS</span>
-            <span class="num monto-grande">{{ r.saldos.total | monto }}</span>
+            <span class="etiqueta">Disponible · ARS</span>
+            <span class="num monto-grande">{{ r.saldos.disponible | monto }}</span>
             <span class="etiqueta desglose">
-              <span>Para gastar <span class="num claro">{{ r.saldos.disponible | monto }}</span></span>
+              <span>Total <span class="num claro">{{ r.saldos.total | monto }}</span></span>
               <span>Ahorrado <span class="num lima">{{ r.saldos.ahorros | monto }}</span></span>
             </span>
           </div>
@@ -72,9 +72,9 @@ import { Movimiento, Resumen } from '../../nucleo/modelos';
           </div>
         </section>
 
-        @if (+r.deuda_tarjetas > 0) {
+        @if (+r.proximo_resumen_tarjetas > 0) {
           <a routerLink="/tarjetas" class="tarjeta deuda">
-            <span>Tarjetas: debés aprox. <span class="num">{{ r.deuda_tarjetas | monto }}</span></span>
+            <span>Tarjetas: próximo resumen <span class="num">{{ r.proximo_resumen_tarjetas | monto }}</span></span>
             <span aria-hidden="true">›</span>
           </a>
         }

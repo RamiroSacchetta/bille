@@ -204,7 +204,7 @@ def test_resumen_del_inicio(almacen, usuario, con_plata):
         almacen, usuario, D(100_000), AHORA, origenes=[(DISPONIBLE, D(50_000)), (AHORRO_LIBRE, D(50_000))]
     )
 
-    resumen = cu.consultar_resumen(almacen, usuario, INICIO_MES, FIN_MES)
+    resumen = cu.consultar_resumen(almacen, usuario, INICIO_MES, FIN_MES, INICIO_MES.date())
 
     assert resumen.saldos.total == D(1_150_000)
     assert (resumen.ingresos_periodo, resumen.gastos_periodo) == (D(1_250_000), D(100_000))
