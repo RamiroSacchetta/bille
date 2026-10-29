@@ -87,7 +87,72 @@ En Movimientos, "Exportar CSV" descarga los movimientos del mes elegido, listos 
 
 Los valores de conexión locales (`backend/app/config.py` y `frontend/src/environments/entorno.ts`) son los que muestra `npx supabase status`. Para cambiarlos en el backend, creá `backend/.env` con `URL_BASE_DATOS`, `SUPABASE_URL` o `SUPABASE_JWT_SECRET`.
 
-Fuera de tu PC el backend se corre con `ENTORNO=produccion`: así no usa ningún valor local y no arranca si falta alguna de esas tres variables o si el secreto es el de Supabase local.
+Fuera de tu PC el backend se corre con `ENTORNO=produccion`: así no usa ningún valor local, y no arranca si falta alguna de esas tres variables o `ORIGENES_CORS` (el dominio de la app), ni si el secreto es el de Supabase local. En producción solo acepta pedidos de los dominios de `ORIGENES_CORS`.
+
+## Deploy en la nube
+
+Gratis: base y login en **Supabase**, API en **Render**, app en **Vercel**. Las cuentas las creás vos; ningún secreto va al repo. Hacelo en este orden:
+
+### 1. Supabase
+
+1. Creá un proyecto (región São Paulo) y guardá la contraseña de la base.
+2. Subí las migraciones desde la raíz del repo:
+   ```bash
+   npx supabase login
+   ```
+   ```bash
+   npx supabase link --project-ref TU-REF
+   ```
+   ```bash
+   npx supabase db push
+   ```
+3. En **Authentication**:
+   - **Hooks**: activá **Before User Created** con la función de Postgres `public.hook_antes_de_crear_usuario` (es la que exige invitación).
+   - **Providers → Email**: dejá **Confirm email** activado y poné la contraseña mínima en 8 con letras y números.
+   - **URL Configuration**: en Site URL y Redirect URLs va la dirección de Vercel (la tenés en el paso 4; volvé acá después), con `/**` al final en Redirect URLs.
+4. Copiá estos datos:
+   - De **Connect → Session pooler**: la cadena de conexión. Render no tiene IPv6, así que la conexión directa no funciona.
+   - **Project URL** y **anon / publishable key**.
+   - El **JWT secret** (en JWT Keys, el "Legacy JWT secret").
+
+### 2. La app apunta a tu Supabase
+
+En [`frontend/src/environments/entorno.ts`](frontend/src/environments/entorno.ts), completá `NUBE` con la Project URL y la clave anónima. Esos dos valores son públicos por diseño. Commiteá y subí el cambio.
+
+### 3. Render (API)
+
+1. **New → Blueprint** y elegí el repo. Render lee [`render.yaml`](render.yaml).
+2. Completá las variables:
+   - `URL_BASE_DATOS`: la cadena del Session pooler.
+   - `SUPABASE_URL`: la Project URL.
+   - `SUPABASE_JWT_SECRET`: el JWT secret.
+   - `ORIGENES_CORS`: la dirección de Vercel como lista, por ejemplo `["https://bille.vercel.app"]`. Si todavía no la tenés, poné algo provisorio y cambialo después del paso 4.
+3. Si Render te da otra dirección que `https://bille-api.onrender.com`, corregí `apiUrl` en `NUBE`.
+
+### 4. Vercel (app)
+
+**Add New → Project**, elegí el repo y poné **Root Directory** en `frontend`. El resto lo toma de [`frontend/vercel.json`](frontend/vercel.json). Con la dirección que te da, completá `ORIGENES_CORS` en Render y las URLs de Supabase (paso 1.3).
+
+### 5. Que la API no se duerma
+
+Render gratis se duerme a los 15 minutos sin uso y tarda cerca de un minuto en despertar. En [cron-job.org](https://cron-job.org) (o UptimeRobot), creá un pedido `GET` a `https://bille-api.onrender.com/api/salud` cada 10 minutos.
+
+Un servicio prendido todo el mes usa unas 744 de las 750 horas gratis de Render. Si dejás de usar la app, borrá el cron.
+
+### 6. Invitar y probar
+
+1. En Supabase → **SQL Editor**, invitá a cada persona: `insert into public.invitaciones (email) values ('amiga@ejemplo.com');`.
+2. Abrí la dirección de Vercel en el celular, creá la cuenta (llega un email para confirmarla) y en el menú del navegador elegí **Instalar app** o **Agregar a la pantalla de inicio**.
+
+Para activar **Google** en la nube, seguí los mismos pasos de "Entrar con Google", con estas diferencias:
+- El URI de redireccionamiento es `https://TU-REF.supabase.co/auth/v1/callback`.
+- El proveedor se activa en **Authentication → Providers → Google**.
+
+### Cómo se porta con la red
+
+Toda carga se guarda primero en el dispositivo, con un id único, y recién después se envía. Si la API tarda o no hay red, queda guardada y se manda sola al abrir la app o al volver la conexión. Si una carga llega dos veces, la API devuelve la ya guardada en lugar de duplicarla.
+
+Al abrir, la app despierta la API. Si tarda más de 5 segundos, se muestran los últimos números que vio.
 
 ## Copias de seguridad
 
@@ -109,7 +174,7 @@ schtasks /Create /SC DAILY /ST 03:00 /TN "Bille backup" /TR "powershell -NoProfi
 ## Seguridad
 
 - Registro solo por invitación y contraseñas de al menos 8 caracteres con letras y números (ver "Invitar a alguien").
-- La API acepta hasta 120 pedidos por minuto por IP (`LIMITE_PEDIDOS_POR_MINUTO`); pasado eso responde 429. Detrás de un proxy (Render) arrancá uvicorn con `--proxy-headers --forwarded-allow-ips="*"`: si no, todos comparten la IP del proxy y el límite pasa a ser global.
+- La API acepta hasta 120 pedidos por minuto por IP (`LIMITE_PEDIDOS_POR_MINUTO`); pasado eso responde 429. Detrás de un proxy (Render) uvicorn arranca con `--proxy-headers --forwarded-allow-ips="*"` (ya está en `render.yaml`): si no, todos comparten la IP del proxy y el límite pasa a ser global.
 - En Supabase de la nube dejá activado **Confirm email** (Authentication → Providers → Email). Sin eso, alguien que conozca el email de un invitado podría registrarlo primero con una contraseña propia.
 - `frontend/vercel.json` define los encabezados de seguridad (CSP, HSTS, etc.) para el despliegue en Vercel.
 - `.github/dependabot.yml` activa avisos y actualizaciones de dependencias cuando el repo esté en GitHub.

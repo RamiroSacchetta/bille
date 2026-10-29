@@ -26,7 +26,7 @@ Supuestos:
 | T1 | S3 | inline | hecho | ver L2 |
 | T2 | S2, S4 | inline | hecho | ver L3 |
 | T3 | S5, S6 | inline | hecho | ver L4 |
-| T4 | S1, S6, S7 | inline | pendiente | |
+| T4 | S1, S6, S7 | inline | hecho | ver L5 |
 
 - T1: `id_carga` en movimientos y compras con tarjeta (base + backend): la segunda vez devuelve lo ya guardado.
 - T2: frontend: toda carga pasa por la cola con su `id_carga`, se envía al abrir la app y al volver la red; ping a `/api/salud` al abrir; caché del service worker para la API de la nube.
@@ -58,3 +58,6 @@ Supuestos:
   - **Frontend:** `entornoPara(hostname)` usa la nube (`NUBE`, HTTPS) fuera de la PC o la red local, y lo local adentro. Frontend 45 tests y build OK.
   - **Deploy:** `render.yaml` (uv, `--proxy-headers`, healthcheck `/api/salud`) y `vercel.json` con el build.
   - **Pendiente hasta tener las URLs:** completar `NUBE`; opcionalmente angostar `connect-src` (hoy `*.supabase.co` y `*.onrender.com`).
+- **L5** (2026-10-29) T4: guía "Deploy en la nube" en el README.
+  - Cubre Supabase (`db push`, hook de invitación, Confirm email, contraseñas, URLs, Session pooler), `NUBE`, Render (Blueprint y variables), Vercel (Root Directory `frontend`), el cron cada 10 min, las invitaciones y Google.
+  - Revisión estructural: hecha.
