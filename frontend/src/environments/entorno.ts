@@ -15,8 +15,8 @@ export interface Entorno {
  */
 export const NUBE: Entorno = {
   apiUrl: 'https://bille-api.onrender.com/api',
-  supabaseUrl: 'https://COMPLETAR.supabase.co',
-  supabaseClaveAnonima: 'COMPLETAR',
+  supabaseUrl: 'https://qzplxdazwuzcsqplzldb.supabase.co',
+  supabaseClaveAnonima: 'sb_publishable_inbAthgJNZHPCfRYrvZ1nw_6mcutloF',
 };
 
 const CLAVE_ANONIMA_LOCAL =

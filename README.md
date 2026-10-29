@@ -95,7 +95,7 @@ Gratis: base y login en **Supabase**, API en **Render**, app en **Vercel**. Las 
 
 ### 1. Supabase
 
-1. Creá un proyecto (región São Paulo) y guardá la contraseña de la base.
+1. Creá un proyecto en la misma región que la API de Render (Oregon, `us-west-2`) y guardá la contraseña de la base. La API hace varias consultas por pantalla: conviene que esté al lado de la base, y Render gratis no tiene servidores en Sudamérica.
 2. Subí las migraciones desde la raíz del repo:
    ```bash
    npx supabase login
