@@ -1,0 +1,24 @@
+# Blueprint de Render para la API de Bille (plan gratis).
+# Render lo lee al crear el servicio desde "New → Blueprint". Las variables con `sync: false`
+# se completan a mano en el panel; nunca van en el repo. Ver "Deploy en la nube" en el README.
+services:
+  - type: web
+    name: bille-api
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install uv && uv sync --frozen --no-dev
+    # --proxy-headers: detrás del proxy de Render, el límite de pedidos usa la IP real de cada uno
+    startCommand: .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips="*"
+    healthCheckPath: /api/salud
+    envVars:
+      - key: ENTORNO
+        value: produccion
+      - key: URL_BASE_DATOS
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+      - key: ORIGENES_CORS
+        sync: false

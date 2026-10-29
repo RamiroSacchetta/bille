@@ -16,7 +16,14 @@ from app.dominio.errores import DatosInvalidos, NoEncontrado, SaldoInsuficiente
 
 @asynccontextmanager
 async def ciclo_de_vida(app: FastAPI):
-    pool = ConnectionPool(configuracion().url_base_datos, min_size=1, max_size=10, open=True)
+    # Sin sentencias preparadas: el pooler de Supabase en modo transacción no las soporta
+    pool = ConnectionPool(
+        configuracion().url_base_datos,
+        min_size=1,
+        max_size=10,
+        open=True,
+        kwargs={"prepare_threshold": None},
+    )
     app.state.pool = pool
     yield
     pool.close()

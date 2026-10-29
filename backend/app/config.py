@@ -19,9 +19,11 @@ class Configuracion(BaseSettings):
     url_base_datos: str = "postgresql://postgres:postgres@127.0.0.1:54322/postgres"
     supabase_url: str = "http://127.0.0.1:54321"
     supabase_jwt_secret: str = SECRETO_SUPABASE_LOCAL
+    # En la nube: el dominio de la app en Vercel, como lista JSON (ORIGENES_CORS='["https://bille.vercel.app"]')
     origenes_cors: list[str] = ["http://localhost:4200", "http://127.0.0.1:4200"]
-    # Cualquier puerto en localhost o en IPs de red local, para usar Bille desde el celular en tu Wi-Fi
-    origenes_cors_regex: str = (
+    # Cualquier puerto en localhost o en IPs de red local, para usar Bille desde el celular en tu Wi-Fi.
+    # Fuera de desarrollo no se usa: solo entra el dominio de ORIGENES_CORS
+    origenes_cors_regex: str | None = (
         r"^http://(localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}"
         r"|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})(:\d+)?$"
     )
@@ -32,14 +34,16 @@ class Configuracion(BaseSettings):
     @model_validator(mode="after")
     def _sin_valores_locales_fuera_de_desarrollo(self) -> Self:
         if self.entorno != "desarrollo":
-            obligatorias = ["url_base_datos", "supabase_url", "supabase_jwt_secret"]
+            obligatorias = ["url_base_datos", "supabase_url", "supabase_jwt_secret", "origenes_cors"]
             faltantes = [
                 nombre.upper()
                 for nombre in obligatorias
-                if nombre not in self.model_fields_set or not getattr(self, nombre).strip()
+                if nombre not in self.model_fields_set or not _con_valor(getattr(self, nombre))
             ]
             if faltantes:
                 raise ValueError(f"Faltan variables de entorno: {', '.join(faltantes)}")
+            if "origenes_cors_regex" not in self.model_fields_set:
+                self.origenes_cors_regex = None
         # Aunque falte ENTORNO: el secreto local es público y con él cualquiera firmaría tokens válidos
         supabase_local = any(host in self.supabase_url for host in ("127.0.0.1", "localhost"))
         if self.supabase_jwt_secret == SECRETO_SUPABASE_LOCAL and (
@@ -47,6 +51,10 @@ class Configuracion(BaseSettings):
         ):
             raise ValueError("SUPABASE_JWT_SECRET no puede ser el de Supabase local")
         return self
+
+
+def _con_valor(valor: str | list[str]) -> bool:
+    return any(v.strip() for v in valor) if isinstance(valor, list) else bool(valor.strip())
 
 
 @lru_cache

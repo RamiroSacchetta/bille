@@ -9,6 +9,7 @@ OBLIGATORIAS = {
     "URL_BASE_DATOS": "postgresql://bille:clave@db.ejemplo.com:5432/postgres",
     "SUPABASE_URL": "https://bille.supabase.co",
     "SUPABASE_JWT_SECRET": "un-secreto-de-produccion-de-al-menos-32-caracteres",
+    "ORIGENES_CORS": '["https://bille.vercel.app"]',
 }
 
 
@@ -28,8 +29,9 @@ def test_fuera_de_desarrollo_no_arranca_sin_variables(monkeypatch):
     monkeypatch.setenv("ENTORNO", "produccion")
     with pytest.raises(ValidationError) as error:
         Configuracion(_env_file=None)
-    assert "Faltan variables de entorno: URL_BASE_DATOS, SUPABASE_URL, SUPABASE_JWT_SECRET" in str(
-        error.value
+    assert (
+        "Faltan variables de entorno: URL_BASE_DATOS, SUPABASE_URL, SUPABASE_JWT_SECRET, ORIGENES_CORS"
+        in str(error.value)
     )
 
 
@@ -75,3 +77,17 @@ def test_fuera_de_desarrollo_arranca_con_todas_las_variables(monkeypatch):
         monkeypatch.setenv(nombre, valor)
     configuracion = Configuracion(_env_file=None)
     assert configuracion.supabase_url == "https://bille.supabase.co"
+
+
+def test_fuera_de_desarrollo_cors_acepta_solo_el_dominio_configurado(monkeypatch):
+    monkeypatch.setenv("ENTORNO", "produccion")
+    for nombre, valor in OBLIGATORIAS.items():
+        monkeypatch.setenv(nombre, valor)
+    configuracion = Configuracion(_env_file=None)
+    assert configuracion.origenes_cors == ["https://bille.vercel.app"]
+    # Las IPs de la red local solo se aceptan en desarrollo
+    assert configuracion.origenes_cors_regex is None
+
+
+def test_en_desarrollo_cors_acepta_la_red_local():
+    assert Configuracion(_env_file=None).origenes_cors_regex is not None

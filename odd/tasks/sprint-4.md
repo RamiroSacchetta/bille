@@ -25,7 +25,7 @@ Supuestos:
 |----|-------|------|--------|--------|
 | T1 | S3 | inline | hecho | ver L2 |
 | T2 | S2, S4 | inline | hecho | ver L3 |
-| T3 | S5, S6 | inline | pendiente | |
+| T3 | S5, S6 | inline | hecho | ver L4 |
 | T4 | S1, S6, S7 | inline | pendiente | |
 
 - T1: `id_carga` en movimientos y compras con tarjeta (base + backend): la segunda vez devuelve lo ya guardado.
@@ -49,3 +49,12 @@ Supuestos:
   - **Service worker:** cachea `https://*.onrender.com/api/**`.
   - **"Cargando…":** reemplaza los estados vacíos hasta la primera respuesta en inicio, movimientos, ahorros, objetivo y tarjetas.
   - **En el navegador:** un gasto se guardó con `id_carga` y la cola quedó en 0.
+- **L4** (2026-10-29) T3:
+  - **Backend:**
+    - Fuera de desarrollo, `ORIGENES_CORS` es obligatoria y se apaga la regex de red local (RED → GREEN).
+    - El pool usa `prepare_threshold=None`.
+    - Tests nuevos que confirman que el JWKS (ES256) ya andaba.
+    - Resultado: 118 tests.
+  - **Frontend:** `entornoPara(hostname)` usa la nube (`NUBE`, HTTPS) fuera de la PC o la red local, y lo local adentro. Frontend 45 tests y build OK.
+  - **Deploy:** `render.yaml` (uv, `--proxy-headers`, healthcheck `/api/salud`) y `vercel.json` con el build.
+  - **Pendiente hasta tener las URLs:** completar `NUBE`; opcionalmente angostar `connect-src` (hoy `*.supabase.co` y `*.onrender.com`).
