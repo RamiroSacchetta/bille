@@ -108,7 +108,11 @@ interface MovimientoAhorro {
               @if (objetivo.fecha_meta) { <span>Para {{ objetivo.fecha_meta }}</span> }</span>
           </a>
         } @empty {
+          @if (!resumen()) {
+            <p class="vacio" aria-busy="true">Cargando…</p>
+          } @else {
           <p class="vacio">Todavía no tenés objetivos. Creá uno para apartar plata de tus ahorros o de tus dólares, por ejemplo para un viaje.</p>
+          }
         }
       </section>
 
@@ -123,8 +127,10 @@ interface MovimientoAhorro {
               </li>
             }
           </ul>
+        } @else if (!movimientosCargados()) {
+          <p class="vacio" aria-busy="true">Cargando…</p>
         } @else {
-          <p class="vacio">Cuando mandes plata a ahorros, va a aparecer acá.</p>
+          <p class="vacio">Cuando agregues plata a ahorros, va a aparecer acá.</p>
         }
       </section>
     </main>
@@ -155,6 +161,8 @@ export class AhorrosPagina implements OnInit {
 
   readonly resumen = signal<Resumen | null>(null);
   readonly movimientos = signal<Movimiento[]>([]);
+  /** Hasta la primera respuesta no se dice que no hay movimientos. */
+  readonly movimientosCargados = signal(false);
   readonly accion = signal<Accion>(null);
   readonly error = signal<string | null>(null);
   readonly guardando = signal(false);
@@ -259,7 +267,10 @@ export class AhorrosPagina implements OnInit {
 
   private cargar(): void {
     this.api.resumen(claveMes()).subscribe((resumen) => this.resumen.set(resumen));
-    this.api.movimientos().subscribe((movimientos) => this.movimientos.set(movimientos));
+    this.api.movimientos().subscribe((movimientos) => {
+      this.movimientos.set(movimientos);
+      this.movimientosCargados.set(true);
+    });
   }
 }
 

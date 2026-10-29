@@ -86,12 +86,16 @@ export interface NuevoGasto extends NuevoMovimientoBase {
   categoria_id?: string | null;
   metodo_pago_id?: string | null;
   origenes?: Parte[] | null;
+  /** Lo genera el dispositivo: si la carga llega dos veces al servidor, se guarda una sola. */
+  id_carga?: string;
 }
 
 export interface NuevoIngreso extends NuevoMovimientoBase {
   categoria_id?: string | null;
   metodo_pago_id?: string | null;
   destino?: Ubicacion;
+  /** Lo genera el dispositivo: si la carga llega dos veces al servidor, se guarda una sola. */
+  id_carga?: string;
 }
 
 /** Compra o venta de dólares: salen pesos y entran dólares, o al revés. */
@@ -102,6 +106,8 @@ export interface NuevoCambio {
   ocurrido_en: string;
   /** De dónde salen los pesos al comprar o adónde van al vender; por defecto `disponible`. */
   pesos_en?: { bolsillo: 'disponible' | 'ahorros' };
+  /** Lo genera el dispositivo: si la carga llega dos veces al servidor, se guarda una sola. */
+  id_carga?: string;
   descripcion?: string | null;
 }
 
@@ -153,6 +159,8 @@ export interface NuevaCompraTarjeta {
   comprado_en: string;
   categoria_id?: string | null;
   descripcion?: string | null;
+  /** Lo genera el dispositivo: si la carga llega dos veces al servidor, se guarda una sola. */
+  id_carga?: string;
 }
 
 export interface PagoResumen extends NuevoMovimientoBase {

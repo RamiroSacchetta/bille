@@ -64,7 +64,7 @@ describe('ColaOfflineServicio', () => {
 
     await cola.sincronizar();
 
-    expect(api.registrarGasto).toHaveBeenCalledOnceWith(gasto('100').datos);
+    expect(api.registrarGasto).toHaveBeenCalledOnceWith(jasmine.objectContaining(gasto('100').datos));
     expect(api.registrarCompraTarjeta).toHaveBeenCalledOnceWith('visa', jasmine.objectContaining({ cuotas: 3 }));
     expect(cola.delUsuario().length).toBe(0);
   });
@@ -83,7 +83,7 @@ describe('ColaOfflineServicio', () => {
 
     await cola.sincronizar();
 
-    expect(api.cambiar).toHaveBeenCalledOnceWith(datos);
+    expect(api.cambiar).toHaveBeenCalledOnceWith(jasmine.objectContaining(datos));
     expect(cola.delUsuario().length).toBe(0);
   });
 
@@ -109,6 +109,74 @@ describe('ColaOfflineServicio', () => {
 
     expect(cola.delUsuario().length).toBe(1);
     expect(cola.delUsuario()[0].error).toBe('No te alcanza la plata del mes para este movimiento');
+  });
+
+  it('cada carga lleva un id único que se manda al servidor', async () => {
+    const cola = TestBed.inject(ColaOfflineServicio);
+    api.registrarGasto.and.returnValue(ok());
+    await cola.agregar(gasto('100'));
+    await cola.agregar(gasto('100'));
+    const ids = [...almacen.datos.values()].map((c) => (c.datos as { id_carga?: string }).id_carga);
+
+    await cola.sincronizar();
+
+    expect(ids[0]).toMatch(/^[0-9a-f-]{36}$/);
+    expect(ids[1]).not.toBe(ids[0]);
+    expect(api.registrarGasto.calls.allArgs().map(([datos]) => datos.id_carga)).toEqual(ids);
+  });
+
+  describe('guardar primero, enviar después', () => {
+    it('guarda la carga antes de enviarla y la borra cuando el servidor confirma', async () => {
+      const cola = TestBed.inject(ColaOfflineServicio);
+      let guardadaAntesDeEnviar = false;
+      api.registrarGasto.and.callFake(() => {
+        guardadaAntesDeEnviar = almacen.datos.size === 1;
+        return ok();
+      });
+
+      const resultado = await cola.guardarYEnviar(gasto('100'));
+
+      expect(guardadaAntesDeEnviar).toBeTrue();
+      expect(resultado).toEqual({ estado: 'enviada' });
+      expect(almacen.datos.size).toBe(0);
+    });
+
+    it('sin respuesta del servidor la deja guardada para enviarla después', async () => {
+      const cola = TestBed.inject(ColaOfflineServicio);
+      api.registrarGasto.and.callFake(sinRed);
+
+      const resultado = await cola.guardarYEnviar(gasto('100'));
+
+      expect(resultado).toEqual({ estado: 'pendiente' });
+      expect(cola.delUsuario().length).toBe(1);
+    });
+
+    it('si el servidor la rechaza la saca de la cola y devuelve el motivo', async () => {
+      const cola = TestBed.inject(ColaOfflineServicio);
+      api.registrarGasto.and.callFake(sinSaldo);
+
+      const resultado = await cola.guardarYEnviar(gasto('99999999'));
+
+      expect(resultado).toEqual({ estado: 'rechazada', error: 'No te alcanza la plata del mes para este movimiento' });
+      expect(almacen.datos.size).toBe(0);
+    });
+
+    it('al abrir la app con sesión envía lo que quedó guardado', async () => {
+      almacen.datos.set('000-1', {
+        id: '000-1',
+        usuarioId: 'ana',
+        creadaEn: '2026-10-28T12:00:00Z',
+        ...gasto('100'),
+      });
+      api.registrarGasto.and.returnValue(ok());
+
+      const cola = TestBed.inject(ColaOfflineServicio);
+      TestBed.flushEffects();
+      await cola.sincronizando;
+
+      expect(api.registrarGasto).toHaveBeenCalledTimes(1);
+      expect(almacen.datos.size).toBe(0);
+    });
   });
 
   it('nunca envía las cargas de otra cuenta', async () => {

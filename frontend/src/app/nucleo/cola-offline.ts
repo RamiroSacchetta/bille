@@ -1,12 +1,12 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
 import { Observable, firstValueFrom } from 'rxjs';
 
 import { ApiServicio, mensajeDeError } from './api.servicio';
 import { AutenticacionServicio } from './autenticacion.servicio';
 import { NuevaCompraTarjeta, NuevoCambio, NuevoGasto, NuevoIngreso } from './modelos';
 
-/** Una carga hecha sin conexión, guardada hasta poder enviarla. */
+/** Una carga guardada en el dispositivo hasta que el servidor la confirme. */
 export type CargaPendiente = {
   id: string;
   /** Cuenta que hizo la carga: solo se envía con la sesión de esa misma cuenta. */
@@ -32,6 +32,9 @@ export abstract class AlmacenPendientes {
   abstract guardar(carga: CargaPendiente): Promise<void>;
   abstract borrar(id: string): Promise<void>;
 }
+
+/** Cómo terminó el primer intento de enviar una carga recién guardada. */
+export type ResultadoEnvio = { estado: 'enviada' } | { estado: 'pendiente' } | { estado: 'rechazada'; error: string };
 
 /** Sin respuesta del servidor: la carga se puede reintentar más tarde. */
 export function esErrorDeRed(error: unknown): boolean {
@@ -74,7 +77,11 @@ export class AlmacenPendientesIndexedDb extends AlmacenPendientes {
   }
 }
 
-/** Cola de cargas hechas sin conexión: se guardan en el dispositivo y se envían solas al volver la red. */
+/**
+ * Guardar primero, enviar después: toda carga se guarda en el dispositivo antes de enviarse y solo se borra
+ * cuando el servidor la confirma. Lo que queda pendiente se envía al abrir la app y al volver la red.
+ * Cada carga lleva un `id_carga`, así un reenvío nunca la duplica en el servidor.
+ */
 @Injectable({ providedIn: 'root' })
 export class ColaOfflineServicio {
   private readonly almacen = inject(AlmacenPendientes);
@@ -82,6 +89,8 @@ export class ColaOfflineServicio {
   private readonly autenticacion = inject(AutenticacionServicio);
   private enviando = false;
   private secuencia = 0;
+  /** La sincronización en curso (o la última), para esperarla. */
+  sincronizando: Promise<void> = Promise.resolve();
 
   readonly pendientes = signal<CargaPendiente[]>([]);
   readonly delUsuario = computed(() =>
@@ -93,19 +102,42 @@ export class ColaOfflineServicio {
 
   constructor() {
     if (typeof window !== 'undefined') window.addEventListener('online', () => this.sincronizar());
+    // Al abrir la app (o al iniciar sesión) se envía lo que quedó guardado
+    effect(() => {
+      if (this.autenticacion.usuarioId()) untracked(() => this.sincronizar());
+    });
   }
 
   async cargar(): Promise<void> {
     this.pendientes.set(await this.almacen.todas());
   }
 
-  async agregar(nueva: NuevaCargaPendiente): Promise<void> {
+  async agregar(nueva: NuevaCargaPendiente): Promise<CargaPendiente> {
     const usuarioId = this.autenticacion.usuarioId();
     if (!usuarioId) throw new Error('No hay sesión para guardar la carga');
     const id = `${Date.now().toString().padStart(15, '0')}-${String(++this.secuencia).padStart(6, '0')}-${crypto.randomUUID()}`;
-    const carga = { ...nueva, id, usuarioId, creadaEn: new Date().toISOString() } as CargaPendiente;
+    const datos = { ...nueva.datos, id_carga: nueva.datos.id_carga ?? crypto.randomUUID() };
+    const carga = { ...nueva, datos, id, usuarioId, creadaEn: new Date().toISOString() } as CargaPendiente;
     await this.almacen.guardar(carga);
     await this.cargar();
+    return carga;
+  }
+
+  /** Guarda la carga en el dispositivo y recién después la envía. Si el servidor la rechaza, sale de la cola. */
+  async guardarYEnviar(nueva: NuevaCargaPendiente): Promise<ResultadoEnvio> {
+    const carga = await this.agregar(nueva);
+    try {
+      await firstValueFrom(this.enviar(carga));
+      await this.almacen.borrar(carga.id);
+      return { estado: 'enviada' };
+    } catch (error) {
+      if (esErrorDeRed(error)) return { estado: 'pendiente' };
+      // Quien la cargó sigue en el formulario y ve el motivo: no queda pendiente
+      await this.almacen.borrar(carga.id);
+      return { estado: 'rechazada', error: mensajeDeError(error) };
+    } finally {
+      await this.cargar();
+    }
   }
 
   async descartar(id: string): Promise<void> {
@@ -114,8 +146,12 @@ export class ColaOfflineServicio {
   }
 
   /** Envía en orden las cargas de la cuenta actual. Se detiene si sigue sin conexión. */
-  async sincronizar(): Promise<void> {
-    if (this.enviando) return;
+  sincronizar(): Promise<void> {
+    if (!this.enviando) this.sincronizando = this.enviarPendientes();
+    return this.sincronizando;
+  }
+
+  private async enviarPendientes(): Promise<void> {
     this.enviando = true;
     try {
       await this.cargar();

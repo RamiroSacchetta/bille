@@ -111,12 +111,16 @@ import { cuotaActual, mesCorto } from './cuotas';
                 </li>
               }
             </ul>
+          } @else if (!comprasCargadas()) {
+            <p class="vacio" aria-busy="true">Cargando…</p>
           } @else {
             <p class="vacio">Todavía no anotaste compras con esta tarjeta. Cargalas desde + eligiendo la tarjeta en "Pagado con".</p>
           }
         </section>
 
         <button type="button" class="boton" (click)="alternarActiva(t)">{{ t.activa ? 'Desactivar tarjeta' : 'Activar tarjeta' }}</button>
+      } @else if (!tarjetasCargadas() && !error()) {
+        <p class="vacio" aria-busy="true">Cargando…</p>
       } @else if (!mostrarNueva()) {
         <p class="vacio">Agregá tu tarjeta de crédito para anotar compras en cuotas y saber cuánto debés.</p>
       }
@@ -146,6 +150,9 @@ export class TarjetasPagina implements OnInit {
   readonly tarjetas = signal<Tarjeta[]>([]);
   readonly elegidaId = signal<string | null>(null);
   readonly compras = signal<CompraTarjeta[]>([]);
+  /** Hasta la primera respuesta no se dice que no hay tarjetas ni compras. */
+  readonly tarjetasCargadas = signal(false);
+  readonly comprasCargadas = signal(false);
   readonly resumen = signal<Resumen | null>(null);
   readonly mostrarNueva = signal(false);
   readonly error = signal<string | null>(null);
@@ -242,6 +249,7 @@ export class TarjetasPagina implements OnInit {
     this.api.tarjetas().subscribe({
       next: (tarjetas) => {
         this.tarjetas.set(tarjetas);
+        this.tarjetasCargadas.set(true);
         const elegida = this.elegida();
         if (elegida) this.cargarCompras(elegida.id);
       },
@@ -250,6 +258,10 @@ export class TarjetasPagina implements OnInit {
   }
 
   private cargarCompras(id: string): void {
-    this.api.comprasTarjeta(id).subscribe((compras) => this.compras.set(compras));
+    this.comprasCargadas.set(false);
+    this.api.comprasTarjeta(id).subscribe((compras) => {
+      this.compras.set(compras);
+      this.comprasCargadas.set(true);
+    });
   }
 }

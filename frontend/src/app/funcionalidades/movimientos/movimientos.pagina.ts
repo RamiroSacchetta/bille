@@ -68,7 +68,11 @@ interface Dia {
           </ul>
         </section>
       } @empty {
-        <p class="vacio">No hay movimientos para mostrar en este mes.</p>
+        @if (cargado()) {
+          <p class="vacio">No hay movimientos para mostrar en este mes.</p>
+        } @else if (!error()) {
+          <p class="vacio" aria-busy="true">Cargando…</p>
+        }
       }
     </main>
     <bi-navegacion />
@@ -94,6 +98,8 @@ export class MovimientosPagina implements OnInit {
   readonly mes = signal(claveMes());
   readonly filtro = signal<Filtro>('todos');
   readonly movimientos = signal<Movimiento[]>([]);
+  /** Hasta la primera respuesta no se dice que no hay movimientos. */
+  readonly cargado = signal(false);
   readonly aConfirmar = signal<Movimiento | null>(null);
   readonly exportando = signal(false);
   readonly error = signal<string | null>(null);
@@ -166,7 +172,10 @@ export class MovimientosPagina implements OnInit {
   private cargar(): void {
     this.error.set(null);
     this.api.movimientos({ mes: this.mes() }).subscribe({
-      next: (movimientos) => this.movimientos.set(movimientos),
+      next: (movimientos) => {
+        this.movimientos.set(movimientos);
+        this.cargado.set(true);
+      },
       error: (error) => this.error.set(mensajeDeError(error)),
     });
   }

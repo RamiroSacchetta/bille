@@ -121,6 +121,8 @@ import { Movimiento, Resumen } from '../../nucleo/modelos';
                 [nombreMetodo]="catalogo.nombresMetodo().get(m.metodo_pago_id ?? '') ?? null" /></li>
             }
           </ul>
+        } @else if (!cargado() && !error()) {
+          <p class="vacio" aria-busy="true">Cargando…</p>
         } @else if (!error()) {
           <p class="vacio">Todavía no cargaste movimientos este mes. Tocá + para agregar el primero.</p>
         }
@@ -159,6 +161,8 @@ export class InicioPagina implements OnInit {
   readonly mes = signal(claveMes());
   readonly resumen = signal<Resumen | null>(null);
   readonly ultimos = signal<Movimiento[]>([]);
+  /** Hasta la primera respuesta no se dice que no hay movimientos. */
+  readonly cargado = signal(false);
   readonly nombre = signal('');
   readonly error = signal<string | null>(null);
   readonly nombreMes = nombreMes;
@@ -212,7 +216,10 @@ export class InicioPagina implements OnInit {
       error: (error) => this.error.set(mensajeDeError(error)),
     });
     this.api.movimientos({ mes: this.mes() }).subscribe({
-      next: (movimientos) => this.ultimos.set(movimientos.slice(0, 5)),
+      next: (movimientos) => {
+        this.ultimos.set(movimientos.slice(0, 5));
+        this.cargado.set(true);
+      },
       error: (error) => this.error.set(mensajeDeError(error)),
     });
   }

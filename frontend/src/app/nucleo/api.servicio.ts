@@ -28,6 +28,11 @@ export class ApiServicio {
   private readonly http = inject(HttpClient);
   private readonly url = entorno.apiUrl;
 
+  /** Pedido liviano para despertar la API (en la nube se duerme sin uso). */
+  salud(): Observable<unknown> {
+    return this.http.get(`${this.url}/salud`);
+  }
+
   resumen(mes: string): Observable<Resumen> {
     return this.http.get<Resumen>(`${this.url}/resumen`, { params: { mes } });
   }

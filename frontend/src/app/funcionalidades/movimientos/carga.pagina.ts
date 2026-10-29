@@ -1,12 +1,11 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { Observable } from 'rxjs';
 
 import { MontoPipe } from '../../compartido/monto.pipe';
-import { ApiServicio, mensajeDeError } from '../../nucleo/api.servicio';
+import { ApiServicio } from '../../nucleo/api.servicio';
 import { CatalogoStore } from '../../nucleo/catalogo.store';
-import { ColaOfflineServicio, NuevaCargaPendiente, esErrorDeRed } from '../../nucleo/cola-offline';
+import { ColaOfflineServicio, NuevaCargaPendiente } from '../../nucleo/cola-offline';
 import { claveMes, fechaParaApi, hoyLocal, montoDesdeTexto, precioPorDolar } from '../../nucleo/formato';
 import { Moneda, NuevoCambio, Resumen } from '../../nucleo/modelos';
 import { textoCuotas } from '../tarjetas/cuotas';
@@ -342,7 +341,7 @@ export class CargaPagina implements OnInit {
         categoria_id: this.categoriaId(),
         descripcion: base.descripcion,
       };
-      this.enviar(this.api.registrarCompraTarjeta(tarjetaId, datos), { tipo: 'compra_tarjeta', tarjetaId, datos });
+      this.enviar({ tipo: 'compra_tarjeta', tarjetaId, datos });
       return;
     }
     if (this.tipo() === 'gasto') {
@@ -350,10 +349,10 @@ export class CargaPagina implements OnInit {
         ...base,
         origenes: this.dividir() ? origenesParaApi(this.origenes(), this.montosOrigen()) : this.origenSinDividir(monto),
       };
-      this.enviar(this.api.registrarGasto(datos), { tipo: 'gasto', datos });
+      this.enviar({ tipo: 'gasto', datos });
     } else {
       const datos = { ...base, destino: { bolsillo: this.destino() } };
-      this.enviar(this.api.registrarIngreso(datos), { tipo: 'ingreso', datos });
+      this.enviar({ tipo: 'ingreso', datos });
     }
   }
 
@@ -369,7 +368,7 @@ export class CargaPagina implements OnInit {
     if (operacion === 'tenia') {
       // Dólares que ya tenías: entran a los dólares libres sin contar como ingreso del mes
       const datos = { monto: dolares, ocurrido_en, descripcion, destino: { bolsillo: 'dolares' as const } };
-      this.enviar(this.api.registrarIngreso(datos), { tipo: 'ingreso', datos });
+      this.enviar({ tipo: 'ingreso', datos });
       return;
     }
     const pesos = montoDesdeTexto(this.pesosTexto());
@@ -382,24 +381,24 @@ export class CargaPagina implements OnInit {
       return;
     }
     const datos: NuevoCambio = { operacion, dolares, pesos, ocurrido_en, pesos_en: { bolsillo: this.bolsilloPesos() }, descripcion };
-    this.enviar(this.api.cambiar(datos), { tipo: 'cambio', datos });
+    this.enviar({ tipo: 'cambio', datos });
   }
 
-  /** Envía la carga; si no hay conexión la guarda en el dispositivo para enviarla después. */
-  private enviar(pedido: Observable<unknown>, pendiente: NuevaCargaPendiente): void {
+  /** Guarda la carga en el dispositivo y la envía; si no hay respuesta, queda guardada y se envía después. */
+  private async enviar(pendiente: NuevaCargaPendiente): Promise<void> {
     this.guardando.set(true);
     this.error.set(null);
-    pedido.subscribe({
-      next: () => this.router.navigateByUrl('/'),
-      error: async (error) => {
-        if (esErrorDeRed(error)) {
-          await this.cola.agregar(pendiente);
-          await this.router.navigateByUrl('/');
-          return;
-        }
+    try {
+      const resultado = await this.cola.guardarYEnviar(pendiente);
+      if (resultado.estado === 'rechazada') {
         this.guardando.set(false);
-        this.error.set(mensajeDeError(error));
-      },
-    });
+        this.error.set(resultado.error);
+        return;
+      }
+      await this.router.navigateByUrl('/');
+    } catch {
+      this.guardando.set(false);
+      this.error.set('No se pudo guardar la carga en este dispositivo. Probá de nuevo.');
+    }
   }
 }

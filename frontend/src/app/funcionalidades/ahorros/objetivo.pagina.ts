@@ -64,6 +64,8 @@ type Modo = 'apartar' | 'devolver';
                 </li>
               }
             </ul>
+          } @else if (!movimientosCargados()) {
+            <p class="vacio" aria-busy="true">Cargando…</p>
           } @else {
             <p class="vacio">Todavía no apartaste {{ o.moneda === 'USD' ? 'dólares' : 'plata' }} para este objetivo.</p>
           }
@@ -94,6 +96,8 @@ export class ObjetivoPagina implements OnInit {
 
   readonly resumen = signal<Resumen | null>(null);
   readonly movimientos = signal<Movimiento[]>([]);
+  /** Hasta la primera respuesta no se dice que no hay movimientos. */
+  readonly movimientosCargados = signal(false);
   readonly modo = signal<Modo>('apartar');
   readonly error = signal<string | null>(null);
   readonly guardando = signal(false);
@@ -177,6 +181,9 @@ export class ObjetivoPagina implements OnInit {
       },
       error: (error) => this.error.set(mensajeDeError(error)),
     });
-    this.api.movimientos().subscribe((movimientos) => this.movimientos.set(movimientos));
+    this.api.movimientos().subscribe((movimientos) => {
+      this.movimientos.set(movimientos);
+      this.movimientosCargados.set(true);
+    });
   }
 }

@@ -24,7 +24,7 @@ Supuestos:
 | ID | Specs | Ruta | Estado | Commit |
 |----|-------|------|--------|--------|
 | T1 | S3 | inline | hecho | ver L2 |
-| T2 | S2, S4 | inline | pendiente | |
+| T2 | S2, S4 | inline | hecho | ver L3 |
 | T3 | S5, S6 | inline | pendiente | |
 | T4 | S1, S6, S7 | inline | pendiente | |
 
@@ -40,3 +40,12 @@ Supuestos:
   - Pasó de RED a GREEN en la base (pgTAP, 45 tests) y en el backend (112 tests, con un test contra Postgres).
   - El reenvío devuelve lo ya guardado, con 201, sin volver a validar el saldo.
   - Bloquea al usuario antes de buscar, para que dos reenvíos simultáneos no se dupliquen.
+- **L3** (2026-10-29) T2: RED (no compilaba) → GREEN, frontend 42/42 y build OK.
+  - **Cola:** toda carga entra a la cola con un `id_carga` y recién después se envía (`guardarYEnviar`).
+    - Si el servidor la rechaza, sale de la cola y el formulario muestra el motivo.
+    - Si no hay respuesta, queda guardada.
+    - Lo pendiente se envía al haber sesión (al abrir la app) y al volver la red.
+  - **Al abrir:** la app hace un pedido a `/api/salud`.
+  - **Service worker:** cachea `https://*.onrender.com/api/**`.
+  - **"Cargando…":** reemplaza los estados vacíos hasta la primera respuesta en inicio, movimientos, ahorros, objetivo y tarjetas.
+  - **En el navegador:** un gasto se guardó con `id_carga` y la cola quedó en 0.
