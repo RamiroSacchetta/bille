@@ -19,6 +19,9 @@ dist/
 supabase/.temp/
 supabase/.branches/
 
+# Copias de la base (scripts/backup.ps1): tienen datos personales
+backups/
+
 # Editor y sistema
 .vscode/
 .idea/

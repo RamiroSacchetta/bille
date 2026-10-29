@@ -89,6 +89,30 @@ Los valores de conexión locales (`backend/app/config.py` y `frontend/src/enviro
 
 Fuera de tu PC el backend se corre con `ENTORNO=produccion`: así no usa ningún valor local y no arranca si falta alguna de esas tres variables o si el secreto es el de Supabase local.
 
+## Copias de seguridad
+
+`scripts/backup.ps1` guarda roles, esquema y datos (incluidas las cuentas) en `backups/AAAA-MM-DD_HHmm` y conserva las últimas 14 copias. Necesita Docker corriendo. Sin configuración copia el Supabase local; para la nube, definí antes la cadena de conexión de Supabase (Settings → Database):
+
+```powershell
+$env:BILLE_URL_BASE_DATOS_BACKUP = "postgresql://postgres.xxxx:clave@aws-0-sa-east-1.pooler.supabase.com:5432/postgres"
+.\scripts\backup.ps1
+```
+
+Para que corra solo todos los días a las 3, con el Programador de tareas de Windows (la variable tiene que estar definida a nivel usuario):
+
+```powershell
+schtasks /Create /SC DAILY /ST 03:00 /TN "Bille backup" /TR "powershell -NoProfile -File C:\ruta\a\Bille\scripts\backup.ps1"
+```
+
+`backups/` no se sube a git: guardá una copia en otro lado (un disco externo o tu nube personal). Para restaurar, seguí la [guía de Supabase](https://supabase.com/docs/guides/platform/migrating-within-supabase/backup-restore) con `roles.sql`, `esquema.sql` y `datos.sql` en ese orden.
+
+## Seguridad
+
+- Registro solo por invitación y contraseñas de al menos 8 caracteres con letras y números (ver "Invitar a alguien").
+- La API acepta hasta 120 pedidos por minuto por IP (`LIMITE_PEDIDOS_POR_MINUTO`); pasado eso responde 429.
+- `frontend/vercel.json` define los encabezados de seguridad (CSP, HSTS, etc.) para el despliegue en Vercel.
+- `.github/dependabot.yml` activa avisos y actualizaciones de dependencias cuando el repo esté en GitHub.
+
 ## Tests
 
 ```bash
