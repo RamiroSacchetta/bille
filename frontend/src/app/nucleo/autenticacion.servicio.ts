@@ -53,7 +53,8 @@ export class AutenticacionServicio {
 function traducirError(mensaje: string): string {
   if (/invalid login credentials/i.test(mensaje)) return 'El email o la contraseña no son correctos.';
   if (/already registered/i.test(mensaje)) return 'Ya existe una cuenta con ese email.';
-  if (/password should be at least/i.test(mensaje)) return 'La contraseña tiene que tener al menos 6 caracteres.';
+  if (/password should be at least/i.test(mensaje)) return 'La contraseña tiene que tener al menos 8 caracteres.';
+  if (/password should contain/i.test(mensaje)) return 'La contraseña tiene que tener letras y números.';
   if (/valid email/i.test(mensaje)) return 'Escribí un email válido.';
   return 'No pudimos conectarnos. Probá de nuevo en un momento.';
 }

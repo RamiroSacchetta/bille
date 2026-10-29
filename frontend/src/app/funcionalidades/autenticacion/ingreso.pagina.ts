@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 
 import { AutenticacionServicio } from '../../nucleo/autenticacion.servicio';
+import { LARGO_MINIMO_CONTRASENA, problemaContrasena } from './contrasena';
 
 /** Iniciar sesión o crear una cuenta. Cada persona tiene su cuenta y sus datos separados. */
 @Component({
@@ -27,9 +28,13 @@ import { AutenticacionServicio } from '../../nucleo/autenticacion.servicio';
           <input id="ingreso-email" name="email" type="email" [(ngModel)]="email" autocomplete="email" required />
         </label>
         <label class="campo">Contraseña
-          <input id="ingreso-contrasena" name="contrasena" type="password" [(ngModel)]="contrasena" minlength="6"
+          <input id="ingreso-contrasena" name="contrasena" type="password" [(ngModel)]="contrasena"
+            [attr.minlength]="modo() === 'registrarse' ? largoMinimo : null"
             [autocomplete]="modo() === 'ingresar' ? 'current-password' : 'new-password'" required />
         </label>
+        @if (modo() === 'registrarse') {
+          <p class="ayuda">Al menos {{ largoMinimo }} caracteres, con letras y números.</p>
+        }
         @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
         <button type="submit" class="boton boton-primario boton-ancho" [disabled]="enviando()">
           {{ modo() === 'ingresar' ? 'Ingresar' : 'Crear cuenta' }}
@@ -51,6 +56,7 @@ import { AutenticacionServicio } from '../../nucleo/autenticacion.servicio';
     h1 { font-size: 40px; letter-spacing: -0.02em; line-height: 1.05; }
     .marca p { margin: 0; font-size: 16px; color: var(--sobre-bosque-suave); line-height: 1.5; }
     form { background: var(--fondo); color: var(--tinta); border-radius: 28px 28px 0 0; padding: 28px 24px 36px; display: flex; flex-direction: column; gap: 14px; width: 100%; max-width: 560px; margin: 0 auto; }
+    .ayuda { margin: -6px 0 0; font-size: 13px; color: var(--atenuado); }
     .alternar { margin: 0; text-align: center; font-size: 14px; color: var(--atenuado); }
     .alternar button { min-height: 44px; border: 0; background: none; font: inherit; font-weight: 600; color: var(--tinta); text-decoration: underline; cursor: pointer; }
   `,
@@ -62,6 +68,7 @@ export class IngresoPagina {
   readonly modo = signal<'ingresar' | 'registrarse'>('ingresar');
   readonly error = signal<string | null>(null);
   readonly enviando = signal(false);
+  readonly largoMinimo = LARGO_MINIMO_CONTRASENA;
 
   nombre = '';
   email = '';
@@ -73,8 +80,14 @@ export class IngresoPagina {
   }
 
   async enviar(): Promise<void> {
-    if (!this.email || this.contrasena.length < 6 || (this.modo() === 'registrarse' && !this.nombre.trim())) {
-      this.error.set('Completá todos los campos. La contraseña lleva al menos 6 caracteres.');
+    if (!this.email || !this.contrasena || (this.modo() === 'registrarse' && !this.nombre.trim())) {
+      this.error.set('Completá todos los campos.');
+      return;
+    }
+    // Las cuentas viejas pueden tener contraseñas de 6: las reglas nuevas solo valen al crear la cuenta
+    const problema = this.modo() === 'registrarse' ? problemaContrasena(this.contrasena) : null;
+    if (problema) {
+      this.error.set(problema);
       return;
     }
     this.enviando.set(true);
