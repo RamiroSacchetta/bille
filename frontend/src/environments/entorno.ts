@@ -14,7 +14,7 @@ export interface Entorno {
  * la URL de Render, y la URL y la clave anónima (o publishable) de Supabase.
  */
 export const NUBE: Entorno = {
-  apiUrl: 'https://bille-api.onrender.com/api',
+  apiUrl: 'https://bille-api-uqvb.onrender.com/api',
   supabaseUrl: 'https://qzplxdazwuzcsqplzldb.supabase.co',
   supabaseClaveAnonima: 'sb_publishable_inbAthgJNZHPCfRYrvZ1nw_6mcutloF',
 };
