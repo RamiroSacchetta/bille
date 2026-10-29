@@ -51,6 +51,24 @@ def test_fuera_de_desarrollo_rechaza_el_secreto_de_supabase_local(monkeypatch):
     assert "SUPABASE_JWT_SECRET no puede ser el de Supabase local" in str(error.value)
 
 
+def test_fuera_de_desarrollo_las_variables_vacias_cuentan_como_faltantes(monkeypatch):
+    monkeypatch.setenv("ENTORNO", "produccion")
+    monkeypatch.setenv("URL_BASE_DATOS", OBLIGATORIAS["URL_BASE_DATOS"])
+    monkeypatch.setenv("SUPABASE_URL", "")
+    monkeypatch.setenv("SUPABASE_JWT_SECRET", "  ")
+    with pytest.raises(ValidationError) as error:
+        Configuracion(_env_file=None)
+    assert "Faltan variables de entorno: SUPABASE_URL, SUPABASE_JWT_SECRET" in str(error.value)
+
+
+def test_sin_entorno_no_acepta_el_secreto_local_con_un_supabase_de_la_nube(monkeypatch):
+    monkeypatch.setenv("URL_BASE_DATOS", OBLIGATORIAS["URL_BASE_DATOS"])
+    monkeypatch.setenv("SUPABASE_URL", OBLIGATORIAS["SUPABASE_URL"])
+    with pytest.raises(ValidationError) as error:
+        Configuracion(_env_file=None)
+    assert "SUPABASE_JWT_SECRET no puede ser el de Supabase local" in str(error.value)
+
+
 def test_fuera_de_desarrollo_arranca_con_todas_las_variables(monkeypatch):
     monkeypatch.setenv("ENTORNO", "produccion")
     for nombre, valor in OBLIGATORIAS.items():

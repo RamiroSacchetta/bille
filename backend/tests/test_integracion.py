@@ -44,13 +44,32 @@ def _registrarse(email: str, nombre: str) -> httpx.Response:
     )
 
 
+EMAILS_CREADOS: list[str] = []
+
+
 def _invitar(email: str) -> None:
     with psycopg.connect(configuracion().url_base_datos, autocommit=True) as conexion:
         conexion.execute("insert into public.invitaciones (email) values (%s)", (email,))
 
 
+@pytest.fixture(scope="module", autouse=True)
+def limpiar_cuentas():
+    """Al terminar borra las cuentas de prueba (sus datos caen en cascada) y sus invitaciones."""
+    yield
+    with psycopg.connect(configuracion().url_base_datos, autocommit=True) as conexion:
+        # Primero los movimientos: la FK de partes_movimiento a objetivos no borra en cascada
+        conexion.execute(
+            "delete from public.movimientos where usuario_id in (select id from auth.users where email = any(%s))",
+            (EMAILS_CREADOS,),
+        )
+        conexion.execute("delete from auth.users where email = any(%s)", (EMAILS_CREADOS,))
+        conexion.execute("delete from public.invitaciones where email = any(%s)", (EMAILS_CREADOS,))
+
+
 def _crear_cuenta(nombre: str) -> dict[str, str]:
-    email = f"{nombre}-{uuid4().hex[:8]}@ejemplo.com"
+    # En minúsculas, como los guardan Supabase Auth y la tabla de invitaciones
+    email = f"{nombre.lower()}-{uuid4().hex[:8]}@ejemplo.com"
+    EMAILS_CREADOS.append(email)
     _invitar(email)
     respuesta = _registrarse(email, nombre)
     respuesta.raise_for_status()

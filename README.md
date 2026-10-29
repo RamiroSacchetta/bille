@@ -109,7 +109,8 @@ schtasks /Create /SC DAILY /ST 03:00 /TN "Bille backup" /TR "powershell -NoProfi
 ## Seguridad
 
 - Registro solo por invitación y contraseñas de al menos 8 caracteres con letras y números (ver "Invitar a alguien").
-- La API acepta hasta 120 pedidos por minuto por IP (`LIMITE_PEDIDOS_POR_MINUTO`); pasado eso responde 429.
+- La API acepta hasta 120 pedidos por minuto por IP (`LIMITE_PEDIDOS_POR_MINUTO`); pasado eso responde 429. Detrás de un proxy (Render) arrancá uvicorn con `--proxy-headers --forwarded-allow-ips="*"`: si no, todos comparten la IP del proxy y el límite pasa a ser global.
+- En Supabase de la nube dejá activado **Confirm email** (Authentication → Providers → Email). Sin eso, alguien que conozca el email de un invitado podría registrarlo primero con una contraseña propia.
 - `frontend/vercel.json` define los encabezados de seguridad (CSP, HSTS, etc.) para el despliegue en Vercel.
 - `.github/dependabot.yml` activa avisos y actualizaciones de dependencias cuando el repo esté en GitHub.
 

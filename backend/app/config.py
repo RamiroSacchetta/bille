@@ -31,13 +31,20 @@ class Configuracion(BaseSettings):
 
     @model_validator(mode="after")
     def _sin_valores_locales_fuera_de_desarrollo(self) -> Self:
-        if self.entorno == "desarrollo":
-            return self
-        obligatorias = ["url_base_datos", "supabase_url", "supabase_jwt_secret"]
-        faltantes = [nombre.upper() for nombre in obligatorias if nombre not in self.model_fields_set]
-        if faltantes:
-            raise ValueError(f"Faltan variables de entorno: {', '.join(faltantes)}")
-        if self.supabase_jwt_secret == SECRETO_SUPABASE_LOCAL:
+        if self.entorno != "desarrollo":
+            obligatorias = ["url_base_datos", "supabase_url", "supabase_jwt_secret"]
+            faltantes = [
+                nombre.upper()
+                for nombre in obligatorias
+                if nombre not in self.model_fields_set or not getattr(self, nombre).strip()
+            ]
+            if faltantes:
+                raise ValueError(f"Faltan variables de entorno: {', '.join(faltantes)}")
+        # Aunque falte ENTORNO: el secreto local es público y con él cualquiera firmaría tokens válidos
+        supabase_local = any(host in self.supabase_url for host in ("127.0.0.1", "localhost"))
+        if self.supabase_jwt_secret == SECRETO_SUPABASE_LOCAL and (
+            self.entorno != "desarrollo" or not supabase_local
+        ):
             raise ValueError("SUPABASE_JWT_SECRET no puede ser el de Supabase local")
         return self
 

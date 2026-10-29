@@ -163,10 +163,10 @@ site_url = "http://127.0.0.1:8080"
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
 # Versión de producción local (8080) y servidor de desarrollo (4200), a donde vuelve el login con Google.
 additional_redirect_urls = [
-  "http://127.0.0.1:8080",
-  "http://localhost:8080",
-  "http://127.0.0.1:4200",
-  "http://localhost:4200",
+  "http://127.0.0.1:8080/**",
+  "http://localhost:8080/**",
+  "http://127.0.0.1:4200/**",
+  "http://localhost:4200/**",
 ]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600

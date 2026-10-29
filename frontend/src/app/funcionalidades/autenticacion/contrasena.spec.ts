@@ -8,6 +8,8 @@ describe('contraseña', () => {
   it('pide letras y números', () => {
     expect(problemaContrasena('solamenteletras')).toBe('La contraseña tiene que tener letras y números.');
     expect(problemaContrasena('12345678')).toBe('La contraseña tiene que tener letras y números.');
+    // Supabase solo cuenta letras sin acentos ni ñ
+    expect(problemaContrasena('ñññññ123')).toBe('La contraseña tiene que tener letras y números.');
   });
 
   it('acepta una contraseña con 8 caracteres, letras y números', () => {

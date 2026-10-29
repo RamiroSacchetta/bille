@@ -5,7 +5,8 @@ export function problemaContrasena(contrasena: string): string | null {
   if (contrasena.length < LARGO_MINIMO_CONTRASENA) {
     return `La contraseña tiene que tener al menos ${LARGO_MINIMO_CONTRASENA} caracteres.`;
   }
-  if (!/\p{L}/u.test(contrasena) || !/\d/.test(contrasena)) {
+  // `letters_digits` de Supabase solo cuenta letras a-z/A-Z
+  if (!/[a-zA-Z]/.test(contrasena) || !/\d/.test(contrasena)) {
     return 'La contraseña tiene que tener letras y números.';
   }
   return null;
