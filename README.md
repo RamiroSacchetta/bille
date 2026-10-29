@@ -108,7 +108,7 @@ Gratis: base y login en **Supabase**, API en **Render**, app en **Vercel**. Las 
    ```
 3. En **Authentication**:
    - **Hooks**: activá **Before User Created** con la función de Postgres `public.hook_antes_de_crear_usuario` (es la que exige invitación).
-   - **Providers → Email**: dejá **Confirm email** activado y poné la contraseña mínima en 8 con letras y números.
+   - **Providers → Email**: poné la contraseña mínima en 8 con letras y números, y apagá **Confirm email** (ver "Seguridad": sin un servidor de email propio, Supabase no le manda la confirmación a nadie fuera del equipo).
    - **URL Configuration**: en Site URL y Redirect URLs va la dirección de Vercel (la tenés en el paso 4; volvé acá después), con `/**` al final en Redirect URLs.
 4. Copiá estos datos:
    - De **Connect → Session pooler**: la cadena de conexión. Render no tiene IPv6, así que la conexión directa no funciona.
@@ -142,7 +142,7 @@ Un servicio prendido todo el mes usa unas 744 de las 750 horas gratis de Render.
 ### 6. Invitar y probar
 
 1. En Supabase → **SQL Editor**, invitá a cada persona: `insert into public.invitaciones (email) values ('amiga@ejemplo.com');`.
-2. Abrí la dirección de Vercel en el celular, creá la cuenta (llega un email para confirmarla) y en el menú del navegador elegí **Instalar app** o **Agregar a la pantalla de inicio**.
+2. Abrí la dirección de Vercel en el celular, creá la cuenta y en el menú del navegador elegí **Instalar app** o **Agregar a la pantalla de inicio**.
 
 Para activar **Google** en la nube, seguí los mismos pasos de "Entrar con Google", con estas diferencias:
 - El URI de redireccionamiento es `https://TU-REF.supabase.co/auth/v1/callback`.
@@ -175,7 +175,10 @@ schtasks /Create /SC DAILY /ST 03:00 /TN "Bille backup" /TR "powershell -NoProfi
 
 - Registro solo por invitación y contraseñas de al menos 8 caracteres con letras y números (ver "Invitar a alguien").
 - La API acepta hasta 120 pedidos por minuto por IP (`LIMITE_PEDIDOS_POR_MINUTO`); pasado eso responde 429. Detrás de un proxy (Render) uvicorn arranca con `--proxy-headers --forwarded-allow-ips="*"` (ya está en `render.yaml`): si no, todos comparten la IP del proxy y el límite pasa a ser global.
-- En Supabase de la nube dejá activado **Confirm email** (Authentication → Providers → Email). Sin eso, alguien que conozca el email de un invitado podría registrarlo primero con una contraseña propia.
+- **Confirm email** está apagado en la nube. El servidor de email que trae Supabase gratis solo manda emails a los miembros del equipo del proyecto, así que con la confirmación prendida tus amigos no podrían terminar el registro.
+  - El riesgo: alguien que conozca el email de un invitado podría registrarlo primero con una contraseña propia.
+  - Cómo se achica: solo pueden registrarse los emails invitados, así que invitá a cada persona justo cuando le pasás el link.
+  - Para prenderlo de nuevo, primero configurá un servidor de email propio (SMTP, por ejemplo Brevo) en Authentication → Emails → SMTP Settings.
 - `frontend/vercel.json` define los encabezados de seguridad (CSP, HSTS, etc.) para el despliegue en Vercel.
 - `.github/dependabot.yml` activa avisos y actualizaciones de dependencias cuando el repo esté en GitHub.
 
