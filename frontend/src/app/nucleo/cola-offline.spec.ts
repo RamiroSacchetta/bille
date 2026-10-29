@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { of, throwError } from 'rxjs';
+import { Subject, of, throwError } from 'rxjs';
 
 import { ApiServicio } from './api.servicio';
 import { AutenticacionServicio } from './autenticacion.servicio';
@@ -158,6 +158,52 @@ describe('ColaOfflineServicio', () => {
       const resultado = await cola.guardarYEnviar(gasto('99999999'));
 
       expect(resultado).toEqual({ estado: 'rechazada', error: 'No te alcanza la plata del mes para este movimiento' });
+      expect(almacen.datos.size).toBe(0);
+    });
+
+    it('funciona sin crypto.randomUUID (la app abierta por http en la red local)', async () => {
+      const original = crypto.randomUUID;
+      Object.defineProperty(crypto, 'randomUUID', { value: undefined, configurable: true });
+      try {
+        const cola = TestBed.inject(ColaOfflineServicio);
+        api.registrarGasto.and.returnValue(ok());
+
+        const resultado = await cola.guardarYEnviar(gasto('100'));
+
+        expect(resultado).toEqual({ estado: 'enviada' });
+        expect(api.registrarGasto.calls.mostRecent().args[0].id_carga).toMatch(
+          /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+        );
+      } finally {
+        Object.defineProperty(crypto, 'randomUUID', { value: original, configurable: true });
+      }
+    });
+
+    for (const status of [504, 503, 502, 500]) {
+      it(`un ${status} (el service worker sin red, o la API despertando) la deja guardada`, async () => {
+        const cola = TestBed.inject(ColaOfflineServicio);
+        api.registrarGasto.and.callFake(() => throwError(() => new HttpErrorResponse({ status })));
+
+        const resultado = await cola.guardarYEnviar(gasto('100'));
+
+        expect(resultado).toEqual({ estado: 'pendiente' });
+        expect(cola.delUsuario().length).toBe(1);
+      });
+    }
+
+    it('mientras se envía una carga, sincronizar no la manda de nuevo', async () => {
+      const cola = TestBed.inject(ColaOfflineServicio);
+      const respuesta = new Subject<any>();
+      api.registrarGasto.and.returnValue(respuesta);
+
+      const envio = cola.guardarYEnviar(gasto('100'));
+      await new Promise((listo) => setTimeout(listo));
+      await cola.sincronizar();
+      respuesta.next({});
+      respuesta.complete();
+      await envio;
+
+      expect(api.registrarGasto).toHaveBeenCalledTimes(1);
       expect(almacen.datos.size).toBe(0);
     });
 

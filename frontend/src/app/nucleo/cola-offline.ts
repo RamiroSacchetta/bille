@@ -36,9 +36,24 @@ export abstract class AlmacenPendientes {
 /** Cómo terminó el primer intento de enviar una carga recién guardada. */
 export type ResultadoEnvio = { estado: 'enviada' } | { estado: 'pendiente' } | { estado: 'rechazada'; error: string };
 
-/** Sin respuesta del servidor: la carga se puede reintentar más tarde. */
+/**
+ * Sin una respuesta del servidor sobre la carga: se puede reintentar más tarde. Es sin red (0), el service
+ * worker sin red (504) o la API caída o despertando (5xx). Un 4xx es una respuesta: el servidor la rechazó.
+ */
 export function esErrorDeRed(error: unknown): boolean {
-  return error instanceof HttpErrorResponse && error.status === 0;
+  return error instanceof HttpErrorResponse && (error.status === 0 || error.status >= 500);
+}
+
+/**
+ * UUID v4 con `getRandomValues`, que existe también fuera de HTTPS (la app abierta por http en la red local),
+ * donde `crypto.randomUUID` no está.
+ */
+export function idAleatorio(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -89,6 +104,8 @@ export class ColaOfflineServicio {
   private readonly autenticacion = inject(AutenticacionServicio);
   private enviando = false;
   private secuencia = 0;
+  /** Cargas que `guardarYEnviar` está enviando: `sincronizar` no las vuelve a mandar. */
+  private readonly enEnvio = new Set<string>();
   /** La sincronización en curso (o la última), para esperarla. */
   sincronizando: Promise<void> = Promise.resolve();
 
@@ -115,8 +132,8 @@ export class ColaOfflineServicio {
   async agregar(nueva: NuevaCargaPendiente): Promise<CargaPendiente> {
     const usuarioId = this.autenticacion.usuarioId();
     if (!usuarioId) throw new Error('No hay sesión para guardar la carga');
-    const id = `${Date.now().toString().padStart(15, '0')}-${String(++this.secuencia).padStart(6, '0')}-${crypto.randomUUID()}`;
-    const datos = { ...nueva.datos, id_carga: nueva.datos.id_carga ?? crypto.randomUUID() };
+    const id = `${Date.now().toString().padStart(15, '0')}-${String(++this.secuencia).padStart(6, '0')}-${idAleatorio()}`;
+    const datos = { ...nueva.datos, id_carga: nueva.datos.id_carga ?? idAleatorio() };
     const carga = { ...nueva, datos, id, usuarioId, creadaEn: new Date().toISOString() } as CargaPendiente;
     await this.almacen.guardar(carga);
     await this.cargar();
@@ -126,6 +143,7 @@ export class ColaOfflineServicio {
   /** Guarda la carga en el dispositivo y recién después la envía. Si el servidor la rechaza, sale de la cola. */
   async guardarYEnviar(nueva: NuevaCargaPendiente): Promise<ResultadoEnvio> {
     const carga = await this.agregar(nueva);
+    this.enEnvio.add(carga.id);
     try {
       await firstValueFrom(this.enviar(carga));
       await this.almacen.borrar(carga.id);
@@ -136,6 +154,7 @@ export class ColaOfflineServicio {
       await this.almacen.borrar(carga.id);
       return { estado: 'rechazada', error: mensajeDeError(error) };
     } finally {
+      this.enEnvio.delete(carga.id);
       await this.cargar();
     }
   }
@@ -156,6 +175,7 @@ export class ColaOfflineServicio {
     try {
       await this.cargar();
       for (const carga of this.delUsuario()) {
+        if (this.enEnvio.has(carga.id)) continue;
         try {
           await firstValueFrom(this.enviar(carga));
           await this.almacen.borrar(carga.id);

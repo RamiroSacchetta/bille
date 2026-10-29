@@ -181,9 +181,12 @@ export class ObjetivoPagina implements OnInit {
       },
       error: (error) => this.error.set(mensajeDeError(error)),
     });
-    this.api.movimientos().subscribe((movimientos) => {
-      this.movimientos.set(movimientos);
-      this.movimientosCargados.set(true);
+    this.api.movimientos().subscribe({
+      next: (movimientos) => {
+        this.movimientos.set(movimientos);
+        this.movimientosCargados.set(true);
+      },
+      error: () => this.movimientosCargados.set(true),
     });
   }
 }

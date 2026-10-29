@@ -259,9 +259,12 @@ export class TarjetasPagina implements OnInit {
 
   private cargarCompras(id: string): void {
     this.comprasCargadas.set(false);
-    this.api.comprasTarjeta(id).subscribe((compras) => {
-      this.compras.set(compras);
-      this.comprasCargadas.set(true);
+    this.api.comprasTarjeta(id).subscribe({
+      next: (compras) => {
+        this.compras.set(compras);
+        this.comprasCargadas.set(true);
+      },
+      error: () => this.comprasCargadas.set(true),
     });
   }
 }

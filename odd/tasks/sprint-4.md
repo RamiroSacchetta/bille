@@ -61,3 +61,15 @@ Supuestos:
 - **L5** (2026-10-29) T4: guía "Deploy en la nube" en el README.
   - Cubre Supabase (`db push`, hook de invitación, Confirm email, contraseñas, URLs, Session pooler), `NUBE`, Render (Blueprint y variables), Vercel (Root Directory `frontend`), el cron cada 10 min, las invitaciones y Google.
   - Revisión estructural: hecha.
+- **L6** (2026-10-29) Verificador independiente: S1, S3, S5, S6 y S7 cumplen; S2 falla y S4 queda parcial.
+  - **Corregido (RED → GREEN, frontend 51 tests):**
+    - **B1:** `crypto.randomUUID` no existe por http en la red local, así que ninguna carga se guardaba desde el celular. Ahora se usa `idAleatorio()` con `getRandomValues`.
+    - **B2:** con el service worker, un corte de red llega como 504, y un 5xx borraba la carga. Ahora 0 y 5xx la dejan pendiente y solo un 4xx la rechaza.
+    - **A1:** `sincronizar` ya no reenvía una carga que `guardarYEnviar` está enviando.
+    - **A3:** si la API falla, "Cargando…" termina en ahorros, objetivo y tarjetas.
+  - **B3, no se corrige:** "Cuando agregues plata a ahorros" sigue el cambio que pidió el usuario, "Agregar a ahorros" (commit 6de757a).
+  - **Advisories que quedan:**
+    - Si IndexedDB falla, no se envía la carga sin guardarla.
+    - Un `id_carga` reusado con otros datos devuelve lo guardado.
+    - Las cargas viejas sin `id_carga` se pueden duplicar.
+    - Hosts no RFC1918 van a la nube.
