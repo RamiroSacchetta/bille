@@ -134,7 +134,7 @@ Los tests de integración del backend se saltean si Supabase local no está corr
 
 - Tu plata es una sola: **disponible** (la plata del mes) + **ahorros**. En el inicio lo grande es lo disponible; el total y lo ahorrado van debajo.
 - Los **objetivos** son apartados dentro de ahorros; lo que no está apartado es **ahorro libre**.
-- Mandar a ahorros, pasar a disponible, apartar o devolver son **transferencias**: no cuentan como gasto.
+- Agregar a ahorros, pasar a disponible, apartar o devolver son **movimientos internos**: no cuentan como gasto.
 - Un **gasto se puede dividir** entre plata del mes, ahorro libre y objetivos. En el balance del mes es un solo gasto; cada bolsillo muestra solo su parte.
 - Las **compras con tarjeta de crédito** no descuentan de tu plata: se acumulan en la tarjeta como deuda estimada, repartida en cuotas según el día de cierre. Lo que descuenta, y cuenta como gasto del mes, es el **pago del resumen** que cargás. Si pagás menos, el resto queda pendiente. En el inicio se ve el **próximo resumen**, lo que se suele pagar con el sueldo que viene: el último resumen cerrado (con lo atrasado) mientras no esté pago, y después el que está en curso.
 - Los **dólares** son un bolsillo aparte que nunca se convierte: no suman al total en pesos ni a los ingresos o gastos del mes.
@@ -142,5 +142,5 @@ Los tests de integración del backend se saltean si Supabase local no está corr
   - **"Ya los tenía"** es un ingreso en dólares.
   - Los **gastos en dólares** salen de los dólares libres o de un objetivo en dólares, y el inicio los muestra aparte ("Gastos en dólares").
   - Un **objetivo** es en pesos o en dólares: el de pesos se aparta desde ahorros y el de dólares, desde los dólares.
-  - Un gasto o una transferencia van en una sola moneda; para pasar de una a otra se compra o se vende. El pago de una tarjeta es siempre en pesos.
+  - Un gasto o un movimiento interno van en una sola moneda; para pasar de una a otra se compra o se vende. El pago de una tarjeta es siempre en pesos.
 - Ningún saldo puede quedar en negativo, en ninguna de las dos monedas.

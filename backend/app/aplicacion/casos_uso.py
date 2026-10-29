@@ -141,7 +141,7 @@ def transferir(
     hacia: Ubicacion,
     descripcion: str | None = None,
 ) -> Movimiento:
-    """Mover plata propia: mandar a ahorros, pasar a disponible, apartar para un objetivo o devolver."""
+    """Mover plata propia: agregar a ahorros, pasar a disponible, apartar para un objetivo o devolver."""
     monto = reglas.normalizar_monto(monto)
     _validar_ubicaciones(almacen, usuario_id, [desde, hacia])
     movimiento = Movimiento(

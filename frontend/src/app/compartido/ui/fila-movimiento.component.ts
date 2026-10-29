@@ -69,7 +69,7 @@ export class FilaMovimientoComponent {
   readonly detalle = computed(() => {
     const m = this.movimiento();
     if (m.tipo === 'cambio') return [textosCambio(m).detalle, m.descripcion].filter(Boolean).join(' · ');
-    if (m.tipo === 'transferencia') return 'Transferencia · no cuenta como gasto';
+    if (m.tipo === 'transferencia') return 'Movimiento interno · no cuenta como gasto';
     if (m.tarjeta_id) return 'Pago de tarjeta de crédito';
     const partes = [this.nombreCategoria() ?? (m.tipo === 'gasto' ? 'Gasto' : 'Ingreso')];
     if (m.tipo === 'gasto' && m.partes.length > 1) partes.push(origenesDeGasto(m));
@@ -91,7 +91,7 @@ function descripcionTransferencia(m: Movimiento): string {
   const origen = m.partes.find((p) => Number(p.monto) < 0);
   if (destino?.objetivo_id) return 'Apartado para un objetivo';
   if (origen?.objetivo_id) return destino?.bolsillo === 'dolares' ? 'Devuelto a dólares libres' : 'Devuelto a ahorros';
-  return destino?.bolsillo === 'ahorros' ? 'Mandaste a ahorros' : 'Pasaste a disponible';
+  return destino?.bolsillo === 'ahorros' ? 'Agregaste a ahorros' : 'Pasaste a disponible';
 }
 
 function origenesDeGasto(m: Movimiento): string {

@@ -67,7 +67,7 @@ interface MovimientoAhorro {
       }
 
       <div class="acciones">
-        <button type="button" class="boton boton-primario" (click)="abrir('mandar')">Mandar a ahorros</button>
+        <button type="button" class="boton boton-primario" (click)="abrir('mandar')">Agregar a ahorros</button>
         <button type="button" class="boton" (click)="abrir('pasar')">Pasar a disponible</button>
       </div>
 
@@ -206,7 +206,7 @@ export class AhorrosPagina implements OnInit {
   }
 
   tituloAccion(): string {
-    return { mandar: 'Mandar a ahorros', pasar: 'Pasar a disponible', objetivo: 'Nuevo objetivo' }[this.accion() ?? 'mandar'];
+    return { mandar: 'Agregar a ahorros', pasar: 'Pasar a disponible', objetivo: 'Nuevo objetivo' }[this.accion() ?? 'mandar'];
   }
 
   abrir(accion: Accion): void {
@@ -266,5 +266,5 @@ export class AhorrosPagina implements OnInit {
 function tituloAhorro(m: Movimiento, neto: number): string {
   if (m.tipo === 'gasto') return 'Gasto con ahorros';
   if (m.tipo === 'cambio') return neto < 0 ? 'Compraste dólares' : 'Vendiste dólares';
-  return neto > 0 ? 'Mandaste a ahorros' : 'Pasaste a disponible';
+  return neto > 0 ? 'Agregaste a ahorros' : 'Pasaste a disponible';
 }

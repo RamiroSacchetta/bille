@@ -23,7 +23,7 @@ BOM = chr(0xFEFF)
 TIPOS = {
     TipoMovimiento.INGRESO: "Ingreso",
     TipoMovimiento.GASTO: "Gasto",
-    TipoMovimiento.TRANSFERENCIA: "Transferencia",
+    TipoMovimiento.TRANSFERENCIA: "Movimiento interno",
     TipoMovimiento.CAMBIO: "Cambio",
 }
 
