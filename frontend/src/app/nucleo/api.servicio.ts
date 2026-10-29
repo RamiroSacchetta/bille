@@ -10,8 +10,10 @@ import {
   Movimiento,
   NuevaCompraTarjeta,
   NuevaTransferencia,
+  NuevoCambio,
   NuevoGasto,
   NuevoIngreso,
+  NuevoObjetivo,
   Objetivo,
   PagoResumen,
   Perfil,
@@ -49,6 +51,11 @@ export class ApiServicio {
     return this.http.post<Movimiento>(`${this.url}/movimientos/transferencias`, datos);
   }
 
+  /** Compra o venta de dólares. */
+  cambiar(datos: NuevoCambio): Observable<Movimiento> {
+    return this.http.post<Movimiento>(`${this.url}/movimientos/cambios`, datos);
+  }
+
   eliminarMovimiento(id: string): Observable<void> {
     return this.http.delete<void>(`${this.url}/movimientos/${id}`);
   }
@@ -57,7 +64,7 @@ export class ApiServicio {
     return this.http.get<Objetivo[]>(`${this.url}/objetivos`);
   }
 
-  crearObjetivo(datos: { nombre: string; monto_meta: string; fecha_meta?: string | null }): Observable<Objetivo> {
+  crearObjetivo(datos: NuevoObjetivo): Observable<Objetivo> {
     return this.http.post<Objetivo>(`${this.url}/objetivos`, datos);
   }
 

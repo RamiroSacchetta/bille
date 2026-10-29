@@ -7,14 +7,16 @@ import { MontoPipe } from '../../compartido/monto.pipe';
 import { ApiServicio, mensajeDeError } from '../../nucleo/api.servicio';
 import { CatalogoStore } from '../../nucleo/catalogo.store';
 import { ColaOfflineServicio, NuevaCargaPendiente, esErrorDeRed } from '../../nucleo/cola-offline';
-import { claveMes, fechaParaApi, hoyLocal, montoDesdeTexto } from '../../nucleo/formato';
-import { Resumen } from '../../nucleo/modelos';
+import { claveMes, fechaParaApi, hoyLocal, montoDesdeTexto, precioPorDolar } from '../../nucleo/formato';
+import { Moneda, NuevoCambio, Resumen } from '../../nucleo/modelos';
 import { textoCuotas } from '../tarjetas/cuotas';
-import { Origen, estadoDivision, origenesParaApi } from './division';
+import { estadoDivision, origenesDeGasto, origenesParaApi } from './division';
 
-type Tipo = 'gasto' | 'ingreso';
+type Tipo = 'gasto' | 'ingreso' | 'dolares';
+/** Qué pasó con los dólares: los compraste, los vendiste o ya los tenías guardados. */
+type OperacionDolares = 'compra' | 'venta' | 'tenia';
 
-/** Carga rápida de un gasto o un ingreso, con opción de dividir el pago entre plata del mes y ahorros. */
+/** Carga rápida de un gasto, un ingreso o un movimiento de dólares, con opción de dividir el pago. */
 @Component({
   selector: 'bi-carga',
   imports: [FormsModule, RouterLink, MontoPipe],
@@ -26,64 +28,100 @@ type Tipo = 'gasto' | 'ingreso';
         <div class="segmentado" role="group" aria-label="Tipo de movimiento">
           <button type="button" [attr.aria-pressed]="tipo() === 'gasto'" (click)="cambiarTipo('gasto')">Gasto</button>
           <button type="button" [attr.aria-pressed]="tipo() === 'ingreso'" (click)="cambiarTipo('ingreso')">Ingreso</button>
+          <button type="button" [attr.aria-pressed]="tipo() === 'dolares'" (click)="cambiarTipo('dolares')">Dólares</button>
         </div>
         <span class="espacio"></span>
       </header>
 
       <form class="formulario" (ngSubmit)="guardar()">
+        @if (tipo() === 'gasto') {
+          <div class="segmentado" role="group" aria-label="Moneda del gasto">
+            <button type="button" [attr.aria-pressed]="monedaGasto() === 'ARS'" (click)="elegirMoneda('ARS')">Pesos</button>
+            <button type="button" [attr.aria-pressed]="monedaGasto() === 'USD'" (click)="elegirMoneda('USD')">Dólares</button>
+          </div>
+        }
+        @if (tipo() === 'dolares') {
+          <div class="segmentado" role="group" aria-label="Qué hiciste con los dólares">
+            <button type="button" [attr.aria-pressed]="operacion() === 'compra'" (click)="elegirOperacion('compra')">Compré</button>
+            <button type="button" [attr.aria-pressed]="operacion() === 'venta'" (click)="elegirOperacion('venta')">Vendí</button>
+            <button type="button" [attr.aria-pressed]="operacion() === 'tenia'" (click)="elegirOperacion('tenia')">Ya los tenía</button>
+          </div>
+        }
+
         <label class="monto">
-          <span class="atenuado">Monto · ARS</span>
+          <span class="atenuado">{{ etiquetaMonto() }}</span>
           <input id="carga-monto" name="monto" inputmode="decimal" autocomplete="off" placeholder="0"
             [ngModel]="montoTexto()" (ngModelChange)="montoTexto.set($event)" [class]="tipo()" />
         </label>
 
-        <fieldset>
-          <legend>Categoría</legend>
-          <div class="chips">
-            @for (categoria of categorias(); track categoria.id) {
-              <button type="button" class="chip" [attr.aria-pressed]="categoriaId() === categoria.id" (click)="categoriaId.set(categoria.id)">
-                {{ categoria.nombre }}
-              </button>
+        @if (tipo() === 'dolares') {
+          @if (operacion() !== 'tenia') {
+            <label class="campo">{{ operacion() === 'compra' ? 'Pagaste' : 'Te dieron' }} · ARS
+              <input id="carga-pesos" name="pesos" inputmode="decimal" autocomplete="off" placeholder="0" class="num"
+                [ngModel]="pesosTexto()" (ngModelChange)="pesosTexto.set($event)" />
+            </label>
+            @if (precio(); as p) {
+              <p class="atenuado chico aviso" role="status"><span class="num">{{ p | monto }}</span> por dólar</p>
             }
-          </div>
-        </fieldset>
-
-        <fieldset>
-          <legend>{{ tipo() === 'gasto' ? 'Pagado con' : 'Cobrado en' }}</legend>
-          <div class="chips">
-            @for (metodo of metodos(); track metodo.id) {
-              <button type="button" class="chip" [attr.aria-pressed]="metodoId() === metodo.id" (click)="elegirMetodo(metodo.id)">
-                {{ metodo.nombre }}
-              </button>
-            }
-            @if (tipo() === 'gasto') {
-              @for (tarjeta of tarjetas(); track tarjeta.id) {
-                <button type="button" class="chip" [attr.aria-pressed]="tarjetaId() === tarjeta.id" (click)="elegirTarjeta(tarjeta.id)">
-                  {{ tarjeta.nombre }} · crédito
+            <fieldset>
+              <legend>{{ operacion() === 'compra' ? 'Sale de' : 'Va a' }}</legend>
+              <div class="segmentado" role="group" [attr.aria-label]="operacion() === 'compra' ? 'De dónde salen los pesos' : 'Adónde van los pesos'">
+                <button type="button" [attr.aria-pressed]="bolsilloPesos() === 'disponible'" (click)="bolsilloPesos.set('disponible')">Plata del mes</button>
+                <button type="button" [attr.aria-pressed]="bolsilloPesos() === 'ahorros'" (click)="bolsilloPesos.set('ahorros')">Ahorros</button>
+              </div>
+            </fieldset>
+          } @else {
+            <p class="atenuado chico aviso">Se suman a tus dólares libres. No cuentan como ingreso del mes.</p>
+          }
+        } @else {
+          <fieldset>
+            <legend>Categoría</legend>
+            <div class="chips">
+              @for (categoria of categorias(); track categoria.id) {
+                <button type="button" class="chip" [attr.aria-pressed]="categoriaId() === categoria.id" (click)="categoriaId.set(categoria.id)">
+                  {{ categoria.nombre }}
                 </button>
               }
-            }
-          </div>
-          @if (tipo() === 'gasto' && !tarjetas().length) {
-            <a routerLink="/tarjetas" class="atenuado chico">Agregar una tarjeta de crédito</a>
-          }
-        </fieldset>
-
-        @if (tarjetaId()) {
-          <fieldset>
-            <legend>Cuotas</legend>
-            <div class="chips">
-              @for (opcion of opcionesCuotas; track opcion) {
-                <button type="button" class="chip" [attr.aria-pressed]="cuotas() === opcion" (click)="cuotas.set(opcion)">{{ opcion }}</button>
-              }
-              <label class="otra">
-                <span class="solo-lectores">Otra cantidad de cuotas</span>
-                <input id="carga-cuotas" name="cuotas" type="number" min="1" max="60" placeholder="Otra"
-                  [ngModel]="opcionesCuotas.includes(cuotas()) ? null : cuotas()" (ngModelChange)="cuotas.set(+$event || 1)" />
-              </label>
             </div>
-            <p class="atenuado chico aviso">{{ vistaCuotas() }} · se suma a la tarjeta, no descuenta de tu plata hasta que pagues el resumen.</p>
           </fieldset>
+
+          <fieldset>
+            <legend>{{ tipo() === 'gasto' ? 'Pagado con' : 'Cobrado en' }}</legend>
+            <div class="chips">
+              @for (metodo of metodos(); track metodo.id) {
+                <button type="button" class="chip" [attr.aria-pressed]="metodoId() === metodo.id" (click)="elegirMetodo(metodo.id)">
+                  {{ metodo.nombre }}
+                </button>
+              }
+              @if (aceptaTarjeta()) {
+                @for (tarjeta of tarjetas(); track tarjeta.id) {
+                  <button type="button" class="chip" [attr.aria-pressed]="tarjetaId() === tarjeta.id" (click)="elegirTarjeta(tarjeta.id)">
+                    {{ tarjeta.nombre }} · crédito
+                  </button>
+                }
+              }
+            </div>
+            @if (aceptaTarjeta() && !tarjetas().length) {
+              <a routerLink="/tarjetas" class="atenuado chico">Agregar una tarjeta de crédito</a>
+            }
+          </fieldset>
+
+          @if (tarjetaId()) {
+            <fieldset>
+              <legend>Cuotas</legend>
+              <div class="chips">
+                @for (opcion of opcionesCuotas; track opcion) {
+                  <button type="button" class="chip" [attr.aria-pressed]="cuotas() === opcion" (click)="cuotas.set(opcion)">{{ opcion }}</button>
+                }
+                <label class="otra">
+                  <span class="solo-lectores">Otra cantidad de cuotas</span>
+                  <input id="carga-cuotas" name="cuotas" type="number" min="1" max="60" placeholder="Otra"
+                    [ngModel]="opcionesCuotas.includes(cuotas()) ? null : cuotas()" (ngModelChange)="cuotas.set(+$event || 1)" />
+                </label>
+              </div>
+              <p class="atenuado chico aviso">{{ vistaCuotas() }} · se suma a la tarjeta, no descuenta de tu plata hasta que pagues el resumen.</p>
+            </fieldset>
+          }
         }
 
         <div class="fila">
@@ -103,12 +141,12 @@ type Tipo = 'gasto' | 'ingreso';
               <button type="button" [attr.aria-pressed]="destino() === 'ahorros'" (click)="destino.set('ahorros')">Ahorros</button>
             </div>
           </fieldset>
-        } @else if (!tarjetaId()) {
+        } @else if (tipo() === 'gasto' && !tarjetaId()) {
           <fieldset>
             <legend>Sale de</legend>
             @if (!dividir()) {
-              <button type="button" class="boton sale-de" (click)="activarDivision()" aria-label="Sale de la plata del mes. Dividir el pago">
-                <span>Plata del mes</span><span>Dividir ›</span>
+              <button type="button" class="boton sale-de" (click)="activarDivision()" [attr.aria-label]="'Sale de ' + origenPrincipal() + '. Dividir el pago'">
+                <span>{{ origenPrincipal() }}</span><span>Dividir ›</span>
               </button>
             } @else {
               <ul class="lista division">
@@ -116,7 +154,7 @@ type Tipo = 'gasto' | 'ingreso';
                   <li>
                     <label [for]="'origen-' + origen.clave">
                       <span>{{ origen.nombre }}</span>
-                      <span class="atenuado chico">Tenés <span class="num">{{ origen.saldo | monto }}</span></span>
+                      <span class="atenuado chico">Tenés <span class="num">{{ origen.saldo | monto: 'simple' : monedaGasto() }}</span></span>
                     </label>
                     <input [id]="'origen-' + origen.clave" [name]="'origen-' + origen.clave" inputmode="decimal" placeholder="0"
                       class="num" [ngModel]="textoOrigen(origen.clave)" (ngModelChange)="cambiarOrigen(origen.clave, $event)" />
@@ -124,7 +162,9 @@ type Tipo = 'gasto' | 'ingreso';
                 }
               </ul>
               <p class="estado" [class.cuadra]="division().cuadra" role="status">{{ division().mensaje }}</p>
-              <button type="button" class="boton" (click)="dividir.set(false)">Pagar todo con la plata del mes</button>
+              <button type="button" class="boton" (click)="dividir.set(false)">
+                Pagar todo con {{ monedaGasto() === 'USD' ? 'los dólares libres' : 'la plata del mes' }}
+              </button>
             }
           </fieldset>
         }
@@ -132,7 +172,7 @@ type Tipo = 'gasto' | 'ingreso';
         @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
 
         <button type="submit" class="boton boton-primario boton-ancho" [disabled]="guardando()">
-          Guardar {{ tipo() }}
+          {{ textoGuardar() }}
         </button>
       </form>
     </main>
@@ -147,6 +187,7 @@ type Tipo = 'gasto' | 'ingreso';
     }
     .monto input.gasto { color: var(--gasto); }
     .monto input.ingreso { color: var(--ingreso); }
+    .monto input.dolares { color: var(--tinta); }
     fieldset { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
     legend { font-size: 13px; font-weight: 600; color: var(--atenuado); margin-bottom: 8px; padding: 0; }
     .fila { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 8px; }
@@ -168,7 +209,13 @@ export class CargaPagina implements OnInit {
   private readonly cola = inject(ColaOfflineServicio);
 
   readonly tipo = signal<Tipo>('gasto');
+  // Un gasto va en una sola moneda: en dólares sale de los dólares libres o de objetivos en dólares
+  readonly monedaGasto = signal<Moneda>('ARS');
+  readonly operacion = signal<OperacionDolares>('compra');
   readonly montoTexto = signal('');
+  // Pesos que pagaste al comprar dólares o que te dieron al venderlos
+  readonly pesosTexto = signal('');
+  readonly bolsilloPesos = signal<'disponible' | 'ahorros'>('disponible');
   readonly categoriaId = signal<string | null>(null);
   readonly metodoId = signal<string | null>(null);
   // Con tarjeta de crédito la compra se acumula en la tarjeta y no descuenta de tu plata
@@ -187,26 +234,27 @@ export class CargaPagina implements OnInit {
   readonly categorias = computed(() => this.catalogo.categorias().filter((c) => c.tipo === this.tipo()));
   readonly metodos = computed(() => this.catalogo.metodos().filter((m) => m.activo));
   readonly tarjetas = this.catalogo.tarjetasActivas;
+  // No hay tarjetas de crédito en dólares
+  readonly aceptaTarjeta = computed(() => this.tipo() === 'gasto' && this.monedaGasto() === 'ARS');
   readonly monto = computed(() => Number(montoDesdeTexto(this.montoTexto()) ?? 0));
   readonly vistaCuotas = computed(() => textoCuotas(this.monto(), this.cuotas()) || 'Escribí el monto');
+  readonly precio = computed(() => precioPorDolar(this.monto(), Number(montoDesdeTexto(this.pesosTexto()) ?? 0)));
 
-  readonly origenes = computed<Origen[]>(() => {
-    const resumen = this.resumen();
-    if (!resumen) return [];
-    return [
-      { clave: 'mes', nombre: 'Plata del mes', bolsillo: 'disponible', objetivo_id: null, saldo: Number(resumen.saldos.disponible) },
-      { clave: 'libre', nombre: 'Ahorro libre', bolsillo: 'ahorros', objetivo_id: null, saldo: Number(resumen.saldos.ahorro_libre) },
-      ...resumen.objetivos.map((o) => ({
-        clave: o.id,
-        nombre: o.nombre,
-        bolsillo: 'ahorros' as const,
-        objetivo_id: o.id,
-        saldo: Number(o.apartado),
-      })),
-    ];
+  readonly etiquetaMonto = computed(() => {
+    if (this.tipo() === 'dolares') return 'Dólares · USD';
+    return this.tipo() === 'gasto' ? `Monto · ${this.monedaGasto()}` : 'Monto · ARS';
   });
 
-  readonly division = computed(() => estadoDivision(this.monto(), this.montosOrigen()));
+  readonly textoGuardar = computed(() => {
+    if (this.tipo() !== 'dolares') return `Guardar ${this.tipo()}`;
+    return { compra: 'Guardar compra', venta: 'Guardar venta', tenia: 'Guardar dólares' }[this.operacion()];
+  });
+
+  readonly origenes = computed(() => origenesDeGasto(this.resumen(), this.monedaGasto()));
+  /** De dónde sale el gasto si no se divide. */
+  readonly origenPrincipal = computed(() => (this.monedaGasto() === 'USD' ? 'Dólares libres' : 'Plata del mes'));
+
+  readonly division = computed(() => estadoDivision(this.monto(), this.montosOrigen(), this.monedaGasto()));
 
   ngOnInit(): void {
     this.catalogo.cargar();
@@ -218,6 +266,19 @@ export class CargaPagina implements OnInit {
     this.categoriaId.set(null);
     this.dividir.set(false);
     this.tarjetaId.set(null);
+    this.error.set(null);
+  }
+
+  elegirMoneda(moneda: Moneda): void {
+    this.monedaGasto.set(moneda);
+    // Los orígenes cambian con la moneda, así que el reparto arranca de nuevo
+    this.tarjetaId.set(null);
+    this.dividir.set(false);
+  }
+
+  elegirOperacion(operacion: OperacionDolares): void {
+    this.operacion.set(operacion);
+    this.error.set(null);
   }
 
   elegirMetodo(id: string): void {
@@ -232,8 +293,8 @@ export class CargaPagina implements OnInit {
   }
 
   activarDivision(): void {
-    // Arranca con todo en la plata del mes y el usuario reparte desde ahí
-    this.montosOrigen.set({ mes: this.monto() });
+    // Arranca con todo en el primer origen (plata del mes o dólares libres) y el usuario reparte desde ahí
+    this.montosOrigen.set({ [this.origenes()[0]?.clave ?? 'mes']: this.monto() });
     this.dividir.set(true);
   }
 
@@ -251,6 +312,10 @@ export class CargaPagina implements OnInit {
     const monto = montoDesdeTexto(this.montoTexto());
     if (!monto) {
       this.error.set('Escribí un monto mayor a cero, con hasta dos decimales.');
+      return;
+    }
+    if (this.tipo() === 'dolares') {
+      this.guardarDolares(monto);
       return;
     }
     if (this.tipo() === 'gasto' && this.dividir() && !this.division().cuadra) {
@@ -283,13 +348,41 @@ export class CargaPagina implements OnInit {
     if (this.tipo() === 'gasto') {
       const datos = {
         ...base,
-        origenes: this.dividir() ? origenesParaApi(this.origenes(), this.montosOrigen()) : null,
+        origenes: this.dividir() ? origenesParaApi(this.origenes(), this.montosOrigen()) : this.origenSinDividir(monto),
       };
       this.enviar(this.api.registrarGasto(datos), { tipo: 'gasto', datos });
     } else {
       const datos = { ...base, destino: { bolsillo: this.destino() } };
       this.enviar(this.api.registrarIngreso(datos), { tipo: 'ingreso', datos });
     }
+  }
+
+  /** Sin dividir, un gasto en pesos sale de la plata del mes (lo que hace la API sin orígenes) y uno en dólares de los dólares libres. */
+  private origenSinDividir(monto: string) {
+    return this.monedaGasto() === 'USD' ? [{ bolsillo: 'dolares' as const, monto }] : null;
+  }
+
+  private guardarDolares(dolares: string): void {
+    const ocurrido_en = fechaParaApi(this.fecha());
+    const descripcion = this.nota().trim() || null;
+    const operacion = this.operacion();
+    if (operacion === 'tenia') {
+      // Dólares que ya tenías: entran a los dólares libres sin contar como ingreso del mes
+      const datos = { monto: dolares, ocurrido_en, descripcion, destino: { bolsillo: 'dolares' as const } };
+      this.enviar(this.api.registrarIngreso(datos), { tipo: 'ingreso', datos });
+      return;
+    }
+    const pesos = montoDesdeTexto(this.pesosTexto());
+    if (!pesos) {
+      this.error.set(
+        operacion === 'compra'
+          ? 'Escribí cuántos pesos pagaste, con hasta dos decimales.'
+          : 'Escribí cuántos pesos te dieron, con hasta dos decimales.',
+      );
+      return;
+    }
+    const datos: NuevoCambio = { operacion, dolares, pesos, ocurrido_en, pesos_en: { bolsillo: this.bolsilloPesos() }, descripcion };
+    this.enviar(this.api.cambiar(datos), { tipo: 'cambio', datos });
   }
 
   /** Envía la carga; si no hay conexión la guarda en el dispositivo para enviarla después. */

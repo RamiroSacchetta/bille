@@ -25,24 +25,26 @@ type Modo = 'apartar' | 'devolver';
       @if (objetivo(); as o) {
         <section class="destacado">
           <span class="etiqueta">Apartado para este objetivo @if (o.fecha_meta) { · para {{ o.fecha_meta }} }</span>
-          <span class="num monto-grande">{{ o.apartado | monto }}</span>
+          <span class="num monto-grande">{{ o.apartado | monto: 'simple' : o.moneda }}</span>
           <bi-barra-progreso [actual]="o.apartado" [meta]="o.monto_meta" [sobreOscuro]="true" etiqueta="Progreso del objetivo" />
           <div class="datos">
-            <div><span class="etiqueta">Meta</span><span class="num">{{ o.monto_meta | monto }}</span></div>
-            <div><span class="etiqueta">Falta</span><span class="num">{{ falta() | monto }}</span></div>
+            <div><span class="etiqueta">Meta</span><span class="num">{{ o.monto_meta | monto: 'simple' : o.moneda }}</span></div>
+            <div><span class="etiqueta">Falta</span><span class="num">{{ falta() | monto: 'simple' : o.moneda }}</span></div>
           </div>
         </section>
 
         <form class="tarjeta formulario" (ngSubmit)="aplicar()">
           <div class="segmentado" role="group" aria-label="Movimiento">
             <button type="button" [attr.aria-pressed]="modo() === 'apartar'" (click)="modo.set('apartar')">Apartar</button>
-            <button type="button" [attr.aria-pressed]="modo() === 'devolver'" (click)="modo.set('devolver')">Devolver a ahorros</button>
+            <button type="button" [attr.aria-pressed]="modo() === 'devolver'" (click)="modo.set('devolver')">
+              Devolver a {{ o.moneda === 'USD' ? 'dólares' : 'ahorros' }}
+            </button>
           </div>
           <span class="atenuado chico">
-            @if (modo() === 'apartar') { Sale de tu ahorro libre: <span class="num">{{ resumen()?.saldos?.ahorro_libre | monto }}</span> }
-            @else { Vuelve a tu ahorro libre. Apartado: <span class="num">{{ o.apartado | monto }}</span> }
+            @if (modo() === 'apartar') { Sale de {{ nombreLibre() }}: <span class="num">{{ libre() | monto: 'simple' : o.moneda }}</span> }
+            @else { Vuelve a {{ nombreLibre() }}. Apartado: <span class="num">{{ o.apartado | monto: 'simple' : o.moneda }}</span> }
           </span>
-          <label class="campo">Monto
+          <label class="campo">Monto · {{ o.moneda }}
             <input id="objetivo-monto" name="monto" inputmode="decimal" placeholder="0" class="num" [(ngModel)]="montoTexto" />
           </label>
           @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
@@ -58,12 +60,12 @@ type Modo = 'apartar' | 'devolver';
               @for (h of historial(); track h.id) {
                 <li class="movimiento">
                   <span class="pila"><span class="nombre">{{ h.titulo }}</span><span class="atenuado chico">{{ h.detalle }}</span></span>
-                  <span class="num" [class.ingreso]="h.monto > 0" [class.gasto]="h.monto < 0">{{ h.monto | monto: 'signo' }}</span>
+                  <span class="num" [class.ingreso]="h.monto > 0" [class.gasto]="h.monto < 0">{{ h.monto | monto: 'signo' : o.moneda }}</span>
                 </li>
               }
             </ul>
           } @else {
-            <p class="vacio">Todavía no apartaste plata para este objetivo.</p>
+            <p class="vacio">Todavía no apartaste {{ o.moneda === 'USD' ? 'dólares' : 'plata' }} para este objetivo.</p>
           }
         </section>
 
@@ -98,6 +100,14 @@ export class ObjetivoPagina implements OnInit {
   montoTexto = '';
 
   readonly objetivo = computed<Objetivo | undefined>(() => this.resumen()?.objetivos.find((o) => o.id === this.id()));
+  /** Los objetivos en dólares se apartan desde los dólares; los de pesos, desde los ahorros. */
+  readonly bolsillo = computed(() => (this.objetivo()?.moneda === 'USD' ? ('dolares' as const) : ('ahorros' as const)));
+  readonly nombreLibre = computed(() => (this.bolsillo() === 'dolares' ? 'tus dólares libres' : 'tu ahorro libre'));
+  readonly libre = computed(() => {
+    const saldos = this.resumen()?.saldos;
+    if (!saldos) return null;
+    return this.bolsillo() === 'dolares' ? saldos.dolares_libres : saldos.ahorro_libre;
+  });
   readonly falta = computed(() => {
     const o = this.objetivo();
     return o ? Math.max(0, Number(o.monto_meta) - Number(o.apartado)) : 0;
@@ -109,7 +119,8 @@ export class ObjetivoPagina implements OnInit {
         const parte = m.partes.find((p) => p.objetivo_id === this.id());
         if (!parte) return null;
         const monto = Number(parte.monto);
-        const titulo = m.tipo === 'gasto' ? (m.descripcion ?? 'Gasto') : monto > 0 ? 'Apartado' : 'Devuelto a ahorros';
+        const devuelto = this.bolsillo() === 'dolares' ? 'Devuelto a dólares libres' : 'Devuelto a ahorros';
+        const titulo = m.tipo === 'gasto' ? (m.descripcion ?? 'Gasto') : monto > 0 ? 'Apartado' : devuelto;
         const detalle = `${nombreDia(new Date(m.ocurrido_en))}${m.tipo === 'gasto' ? ' · Gasto pagado con este objetivo' : ''}`;
         return { id: m.id, titulo, detalle, monto };
       })
@@ -126,8 +137,8 @@ export class ObjetivoPagina implements OnInit {
       this.error.set('Escribí un monto mayor a cero, con hasta dos decimales.');
       return;
     }
-    const objetivo = { bolsillo: 'ahorros' as const, objetivo_id: this.id() };
-    const libre = { bolsillo: 'ahorros' as const };
+    const objetivo = { bolsillo: this.bolsillo(), objetivo_id: this.id() };
+    const libre = { bolsillo: this.bolsillo() };
     const apartar = this.modo() === 'apartar';
     this.guardando.set(true);
     this.error.set(null);

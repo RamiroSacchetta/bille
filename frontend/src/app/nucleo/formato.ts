@@ -1,18 +1,38 @@
 // Formato de montos y fechas en es-AR.
 
+import { Moneda, Movimiento } from './modelos';
+
 const pesos = new Intl.NumberFormat('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 const pesosConDecimales = new Intl.NumberFormat('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const simbolos: Record<Moneda, string> = { ARS: '$ ', USD: 'US$ ' };
 
-/** "$ 1.250.000" — con `decimales` siempre muestra dos decimales. */
-export function formatearMonto(monto: string | number, decimales = false): string {
+/** "$ 1.250.000" o "US$ 1.500" — con `decimales` siempre muestra dos decimales. */
+export function formatearMonto(monto: string | number, moneda: Moneda = 'ARS', decimales = false): string {
   const valor = Math.abs(Number(monto));
-  return '$ ' + (decimales ? pesosConDecimales : pesos).format(valor);
+  return simbolos[moneda] + (decimales ? pesosConDecimales : pesos).format(valor);
 }
 
-/** Monto con signo tipográfico: "+$ 1.000", "−$ 500". */
-export function formatearConSigno(monto: string | number): string {
+/** Monto con signo tipográfico: "+$ 1.000", "−US$ 500". */
+export function formatearConSigno(monto: string | number, moneda: Moneda = 'ARS'): string {
   const valor = Number(monto);
-  return (valor < 0 ? '−' : '+') + formatearMonto(valor);
+  return (valor < 0 ? '−' : '+') + formatearMonto(valor, moneda);
+}
+
+/** Pesos por cada dólar, redondeado a centavos; null si falta alguno de los dos montos. */
+export function precioPorDolar(dolares: number, pesos: number): number | null {
+  if (!(dolares > 0) || !(pesos > 0)) return null;
+  return Math.round((pesos / dolares) * 100) / 100;
+}
+
+/** "Compraste US$ 200" y "$ 240.000 · $ 1.200 por dólar" para un movimiento de cambio. */
+export function textosCambio(m: Movimiento): { titulo: string; detalle: string } {
+  const dolares = Number(m.partes.find((p) => p.bolsillo === 'dolares')?.monto ?? 0);
+  // Los pesos son la parte que no es de dólares, con el signo opuesto
+  const pesos = Math.abs(Number(m.partes.find((p) => p.bolsillo !== 'dolares')?.monto ?? 0));
+  const verbo = dolares < 0 ? 'Vendiste' : 'Compraste';
+  const precio = precioPorDolar(Math.abs(dolares), pesos);
+  const detalle = [formatearMonto(pesos), ...(precio ? [`${formatearMonto(precio)} por dólar`] : [])].join(' · ');
+  return { titulo: `${verbo} ${formatearMonto(m.monto, 'USD')}`, detalle };
 }
 
 /** "2026-10" para el mes de la fecha dada. */

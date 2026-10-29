@@ -8,7 +8,7 @@ import { BarraProgresoComponent } from '../../compartido/ui/barra-progreso.compo
 import { NavegacionComponent } from '../../compartido/ui/navegacion.component';
 import { ApiServicio, mensajeDeError } from '../../nucleo/api.servicio';
 import { claveMes, fechaParaApi, hoyLocal, montoDesdeTexto, nombreDia } from '../../nucleo/formato';
-import { Movimiento, Resumen } from '../../nucleo/modelos';
+import { Moneda, Movimiento, Resumen } from '../../nucleo/modelos';
 
 type Accion = 'mandar' | 'pasar' | 'objetivo' | null;
 
@@ -53,6 +53,19 @@ interface MovimientoAhorro {
         </section>
       }
 
+      @if (resumen(); as r) {
+        <section class="tarjeta dolares" aria-labelledby="dolares-titulo">
+          <div class="pila">
+            <h2 id="dolares-titulo">Dólares</h2>
+            <span class="atenuado chico">Aparte de los pesos, sin cotización.</span>
+          </div>
+          <div class="pila derecha">
+            <span class="num total-dolares">{{ r.saldos.dolares | monto: 'simple' : 'USD' }}</span>
+            <span class="atenuado chico">libres <span class="num">{{ r.saldos.dolares_libres | monto: 'simple' : 'USD' }}</span></span>
+          </div>
+        </section>
+      }
+
       <div class="acciones">
         <button type="button" class="boton boton-primario" (click)="abrir('mandar')">Mandar a ahorros</button>
         <button type="button" class="boton" (click)="abrir('pasar')">Pasar a disponible</button>
@@ -65,11 +78,15 @@ interface MovimientoAhorro {
             <label class="campo">Nombre
               <input id="objetivo-nombre" name="nombre" maxlength="80" placeholder="Ej: Viaje a Bariloche" [(ngModel)]="nombreObjetivo" />
             </label>
+            <div class="segmentado" role="group" aria-label="Moneda del objetivo">
+              <button type="button" [attr.aria-pressed]="monedaObjetivo() === 'ARS'" (click)="monedaObjetivo.set('ARS')">Pesos</button>
+              <button type="button" [attr.aria-pressed]="monedaObjetivo() === 'USD'" (click)="monedaObjetivo.set('USD')">Dólares</button>
+            </div>
             <label class="campo">Fecha meta (opcional)
               <input id="objetivo-fecha" name="fecha" type="date" [(ngModel)]="fechaObjetivo" />
             </label>
           }
-          <label class="campo">{{ accion() === 'objetivo' ? 'Meta' : 'Monto' }}
+          <label class="campo">{{ accion() === 'objetivo' ? 'Meta · ' + monedaObjetivo() : 'Monto' }}
             <input id="ahorros-monto" name="monto" inputmode="decimal" placeholder="0" class="num" [(ngModel)]="montoTexto" />
           </label>
           @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
@@ -87,11 +104,11 @@ interface MovimientoAhorro {
             <span class="fila"><span class="nombre">{{ objetivo.nombre }}</span>
               <span class="num">{{ porcentaje(objetivo.apartado, objetivo.monto_meta) }}%</span></span>
             <bi-barra-progreso [actual]="objetivo.apartado" [meta]="objetivo.monto_meta" [etiqueta]="'Progreso de ' + objetivo.nombre" />
-            <span class="fila atenuado chico"><span class="num">{{ objetivo.apartado | monto }} / {{ objetivo.monto_meta | monto }}</span>
+            <span class="fila atenuado chico"><span class="num">{{ objetivo.apartado | monto: 'simple' : objetivo.moneda }} / {{ objetivo.monto_meta | monto: 'simple' : objetivo.moneda }}</span>
               @if (objetivo.fecha_meta) { <span>Para {{ objetivo.fecha_meta }}</span> }</span>
           </a>
         } @empty {
-          <p class="vacio">Todavía no tenés objetivos. Creá uno para apartar plata de tus ahorros, por ejemplo para un viaje.</p>
+          <p class="vacio">Todavía no tenés objetivos. Creá uno para apartar plata de tus ahorros o de tus dólares, por ejemplo para un viaje.</p>
         }
       </section>
 
@@ -128,6 +145,9 @@ interface MovimientoAhorro {
     .chico { font-size: 13px; }
     .movimiento { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; }
     .titulo { font-weight: 500; }
+    .dolares { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    .derecha { align-items: flex-end; }
+    .total-dolares { font-size: 20px; font-weight: 600; }
   `,
 })
 export class AhorrosPagina implements OnInit {
@@ -138,6 +158,7 @@ export class AhorrosPagina implements OnInit {
   readonly accion = signal<Accion>(null);
   readonly error = signal<string | null>(null);
   readonly guardando = signal(false);
+  readonly monedaObjetivo = signal<Moneda>('ARS');
 
   montoTexto = '';
   nombreObjetivo = '';
@@ -150,7 +171,8 @@ export class AhorrosPagina implements OnInit {
     const colores = ['#F5F5F0', '#6E8A7C', '#9FD3FF', '#FFB98A'];
     const tramos = [
       { nombre: 'Ahorro libre', monto: Number(r.saldos.ahorro_libre), color: 'var(--lima)' },
-      ...r.objetivos.map((o, i) => ({ nombre: o.nombre, monto: Number(o.apartado), color: colores[i % colores.length] })),
+      // Los ahorros son en pesos: los objetivos en dólares no entran en este reparto
+      ...r.objetivos.filter((o) => o.moneda === 'ARS').map((o, i) => ({ nombre: o.nombre, monto: Number(o.apartado), color: colores[i % colores.length] })),
     ].filter((t) => t.monto > 0);
     return tramos.map((t) => ({ ...t, porcentaje: (t.monto / total) * 100 }));
   });
@@ -162,8 +184,7 @@ export class AhorrosPagina implements OnInit {
         const partesAhorro = m.partes.filter((p) => p.bolsillo === 'ahorros');
         const neto = partesAhorro.reduce((suma, p) => suma + Number(p.monto), 0);
         if (!partesAhorro.length || (m.tipo === 'transferencia' && neto === 0)) return null;
-        const titulo =
-          m.descripcion ?? (m.tipo === 'gasto' ? 'Gasto con ahorros' : neto > 0 ? 'Mandaste a ahorros' : 'Pasaste a disponible');
+        const titulo = m.descripcion ?? tituloAhorro(m, neto);
         return { id: m.id, titulo, detalle: nombreDia(new Date(m.ocurrido_en)), monto: neto };
       })
       .filter((m): m is MovimientoAhorro => m !== null)
@@ -194,6 +215,7 @@ export class AhorrosPagina implements OnInit {
     this.montoTexto = '';
     this.nombreObjetivo = '';
     this.fechaObjetivo = '';
+    this.monedaObjetivo.set('ARS');
   }
 
   confirmar(): void {
@@ -209,7 +231,12 @@ export class AhorrosPagina implements OnInit {
     }
     const pedido: Observable<unknown> =
       accion === 'objetivo'
-        ? this.api.crearObjetivo({ nombre: this.nombreObjetivo.trim(), monto_meta: monto, fecha_meta: this.fechaObjetivo || null })
+        ? this.api.crearObjetivo({
+            nombre: this.nombreObjetivo.trim(),
+            monto_meta: monto,
+            fecha_meta: this.fechaObjetivo || null,
+            moneda: this.monedaObjetivo(),
+          })
         : this.api.transferir({
             monto,
             ocurrido_en: fechaParaApi(hoyLocal()),
@@ -234,4 +261,10 @@ export class AhorrosPagina implements OnInit {
     this.api.resumen(claveMes()).subscribe((resumen) => this.resumen.set(resumen));
     this.api.movimientos().subscribe((movimientos) => this.movimientos.set(movimientos));
   }
+}
+
+function tituloAhorro(m: Movimiento, neto: number): string {
+  if (m.tipo === 'gasto') return 'Gasto con ahorros';
+  if (m.tipo === 'cambio') return neto < 0 ? 'Compraste dólares' : 'Vendiste dólares';
+  return neto > 0 ? 'Mandaste a ahorros' : 'Pasaste a disponible';
 }

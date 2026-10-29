@@ -33,8 +33,8 @@ Fuera de alcance: tarjetas de crédito en dólares, cotización automática.
 
 | ID | Specs | Ruta | Estado | Commit |
 |----|-------|------|--------|--------|
-| T1 | S1–S6 | inline | pendiente | |
-| T2 | S1–S6 | inline | pendiente | |
+| T1 | S1–S6 | inline | hecho | 8832797 |
+| T2 | S1–S6, S8 | inline | hecho | 4538728 |
 | T3 | S7, S8 | delegada (paralelo con T1–T2, superficies disjuntas) | en curso | |
 
 - T1: base de datos: bolsillo `dolares`, moneda en objetivos, tipo `cambio`, validaciones y saldos; tests pgTAP.
@@ -44,3 +44,12 @@ Fuera de alcance: tarjetas de crédito en dólares, cotización automática.
 ## Log
 
 - **L1** (2026-10-29) Pedido original: "Ok, agreguemos lo de los dolares, contame cómo pensas implementarlo ?" → "Quiero poder gastar o generar un objetivo en dólares, por ejemplo un viaje" → "Arranca con eso y cuando termines reinicia el backend así puedo verlo de mi celular".
+- **L2** (2026-10-29) T1:
+  - Las migraciones van en dos archivos, porque un valor de enum nuevo no se puede usar en la misma transacción que lo agrega.
+  - Se aplicaron con `supabase migration up` (sin reset, para no borrar los datos locales).
+  - pgTAP pasó de RED a GREEN: 38 tests.
+- **L3** (2026-10-29) T2:
+  - RED (falla al importar) → GREEN. Backend: 103 tests, contando el flujo de dólares de punta a punta contra Postgres; ruff limpio.
+  - Se mantuvo el mensaje de siempre para un objetivo en disponible.
+  - El CSV suma la columna "Moneda".
+  - El cambio tiene sus partes ordenadas: primero sale y después entra.

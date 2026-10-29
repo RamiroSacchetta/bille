@@ -7,8 +7,8 @@ import { FilaMovimientoComponent } from '../../compartido/ui/fila-movimiento.com
 import { NavegacionComponent } from '../../compartido/ui/navegacion.component';
 import { ApiServicio, mensajeDeError } from '../../nucleo/api.servicio';
 import { CatalogoStore } from '../../nucleo/catalogo.store';
-import { ColaOfflineServicio } from '../../nucleo/cola-offline';
-import { claveMes, moverMes, nombreMes } from '../../nucleo/formato';
+import { CargaPendiente, ColaOfflineServicio } from '../../nucleo/cola-offline';
+import { claveMes, formatearMonto, moverMes, nombreMes } from '../../nucleo/formato';
 import { Movimiento, Resumen } from '../../nucleo/modelos';
 
 /** Inicio: tu plata, el balance del mes, los objetivos y los últimos movimientos. */
@@ -42,7 +42,7 @@ import { Movimiento, Resumen } from '../../nucleo/modelos';
           @for (c of cola.delUsuario(); track c.id) {
             @if (c.error) {
               <div class="rechazada">
-                <span class="error">{{ c.datos.descripcion || 'Carga' }} de {{ c.datos.monto | monto }}: {{ c.error }}</span>
+                <span class="error">{{ textoPendiente(c) }}: {{ c.error }}</span>
                 <button type="button" class="boton" (click)="cola.descartar(c.id)">Descartar</button>
               </div>
             }
@@ -70,6 +70,9 @@ import { Movimiento, Resumen } from '../../nucleo/modelos';
               <span class="num gasto-claro">{{ r.gastos_mes | monto }}</span>
             </div>
           </div>
+          @if (+r.gastos_dolares_mes > 0) {
+            <span class="etiqueta">Gastos en dólares <span class="num gasto-claro">{{ r.gastos_dolares_mes | monto: 'simple' : 'USD' }}</span></span>
+          }
         </section>
 
         @if (+r.proximo_resumen_tarjetas > 0) {
@@ -84,6 +87,9 @@ import { Movimiento, Resumen } from '../../nucleo/modelos';
             <div class="pila">
               <h2 id="ahorros-titulo">Ahorros</h2>
               <span class="atenuado chico">Ahorrado <span class="num">{{ r.saldos.ahorros | monto }}</span> · libre <span class="num">{{ r.saldos.ahorro_libre | monto }}</span></span>
+              @if (tieneDolares(r)) {
+                <span class="atenuado chico">Dólares <span class="num">{{ r.saldos.dolares | monto: 'simple' : 'USD' }}</span> · libres <span class="num">{{ r.saldos.dolares_libres | monto: 'simple' : 'USD' }}</span></span>
+              }
             </div>
             <a routerLink="/ahorros" aria-label="Ver todos los ahorros">Ver todo</a>
           </div>
@@ -92,7 +98,7 @@ import { Movimiento, Resumen } from '../../nucleo/modelos';
               @for (objetivo of r.objetivos; track objetivo.id) {
                 <a class="tarjeta objetivo" [routerLink]="['/ahorros', objetivo.id]">
                   <span class="nombre">{{ objetivo.nombre }}</span>
-                  <span class="num atenuado chico">{{ objetivo.apartado | monto }} / {{ objetivo.monto_meta | monto }}</span>
+                  <span class="num atenuado chico">{{ objetivo.apartado | monto: 'simple' : objetivo.moneda }} / {{ objetivo.monto_meta | monto: 'simple' : objetivo.moneda }}</span>
                   <bi-barra-progreso [actual]="objetivo.apartado" [meta]="objetivo.monto_meta" [etiqueta]="'Progreso de ' + objetivo.nombre" />
                 </a>
               }
@@ -175,6 +181,22 @@ export class InicioPagina implements OnInit {
     if (hora < 12) return 'Buen día';
     if (hora < 20) return 'Buenas tardes';
     return 'Buenas noches';
+  }
+
+  /** Los dólares se muestran si hay alguno o si hay un objetivo en dólares. */
+  tieneDolares(r: Resumen): boolean {
+    return Number(r.saldos.dolares) > 0 || r.objetivos.some((o) => o.moneda === 'USD');
+  }
+
+  /** "Supermercado de $ 1.000" o "Compra de US$ 200" para una carga que el servidor rechazó. */
+  textoPendiente(c: CargaPendiente): string {
+    if (c.tipo === 'cambio') {
+      return `${c.datos.operacion === 'compra' ? 'Compra' : 'Venta'} de ${formatearMonto(c.datos.dolares, 'USD')}`;
+    }
+    const enDolares =
+      (c.tipo === 'ingreso' && c.datos.destino?.bolsillo === 'dolares') ||
+      (c.tipo === 'gasto' && !!c.datos.origenes?.some((o) => o.bolsillo === 'dolares'));
+    return `${c.datos.descripcion || 'Carga'} de ${formatearMonto(c.datos.monto, enDolares ? 'USD' : 'ARS')}`;
   }
 
   cambiarMes(delta: number): void {

@@ -4,7 +4,7 @@ import { Observable, firstValueFrom } from 'rxjs';
 
 import { ApiServicio, mensajeDeError } from './api.servicio';
 import { AutenticacionServicio } from './autenticacion.servicio';
-import { NuevaCompraTarjeta, NuevoGasto, NuevoIngreso } from './modelos';
+import { NuevaCompraTarjeta, NuevoCambio, NuevoGasto, NuevoIngreso } from './modelos';
 
 /** Una carga hecha sin conexión, guardada hasta poder enviarla. */
 export type CargaPendiente = {
@@ -17,12 +17,14 @@ export type CargaPendiente = {
   | { tipo: 'gasto'; datos: NuevoGasto }
   | { tipo: 'ingreso'; datos: NuevoIngreso }
   | { tipo: 'compra_tarjeta'; tarjetaId: string; datos: NuevaCompraTarjeta }
+  | { tipo: 'cambio'; datos: NuevoCambio }
 );
 
 export type NuevaCargaPendiente =
   | { tipo: 'gasto'; datos: NuevoGasto }
   | { tipo: 'ingreso'; datos: NuevoIngreso }
-  | { tipo: 'compra_tarjeta'; tarjetaId: string; datos: NuevaCompraTarjeta };
+  | { tipo: 'compra_tarjeta'; tarjetaId: string; datos: NuevaCompraTarjeta }
+  | { tipo: 'cambio'; datos: NuevoCambio };
 
 /** Dónde se guardan las cargas pendientes (IndexedDB en la app, memoria en los tests). */
 export abstract class AlmacenPendientes {
@@ -141,6 +143,8 @@ export class ColaOfflineServicio {
         return this.api.registrarIngreso(carga.datos);
       case 'compra_tarjeta':
         return this.api.registrarCompraTarjeta(carga.tarjetaId, carga.datos);
+      case 'cambio':
+        return this.api.cambiar(carga.datos);
     }
   }
 }

@@ -1,6 +1,7 @@
 // Lógica del pago dividido, separada de la pantalla para poder probarla sola.
 
-import { Bolsillo } from '../../nucleo/modelos';
+import { formatearMonto } from '../../nucleo/formato';
+import { Bolsillo, Moneda, Resumen } from '../../nucleo/modelos';
 
 export interface Origen {
   clave: string;
@@ -18,14 +19,38 @@ export interface EstadoDivision {
 }
 
 /** Compara lo asignado a cada origen con el total del gasto. */
-export function estadoDivision(total: number, montos: Record<string, number>): EstadoDivision {
+export function estadoDivision(total: number, montos: Record<string, number>, moneda: Moneda = 'ARS'): EstadoDivision {
   const asignado = Object.values(montos).reduce((suma, monto) => suma + (monto || 0), 0);
   const falta = Math.round((total - asignado) * 100) / 100;
-  const formato = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 2 });
-  let mensaje = `Listo: las partes suman $ ${formato.format(total)}`;
-  if (falta > 0) mensaje = `Falta asignar $ ${formato.format(falta)}`;
-  if (falta < 0) mensaje = `Te pasaste por $ ${formato.format(-falta)}`;
+  let mensaje = `Listo: las partes suman ${formatearMonto(total, moneda)}`;
+  if (falta > 0) mensaje = `Falta asignar ${formatearMonto(falta, moneda)}`;
+  if (falta < 0) mensaje = `Te pasaste por ${formatearMonto(falta, moneda)}`;
   return { asignado, falta, cuadra: falta === 0 && total > 0, mensaje };
+}
+
+/** De dónde puede salir un gasto: en pesos o en dólares, nunca mezclados. */
+export function origenesDeGasto(resumen: Resumen | null, moneda: Moneda): Origen[] {
+  if (!resumen) return [];
+  const objetivos = resumen.objetivos
+    .filter((o) => o.moneda === moneda)
+    .map((o) => ({
+      clave: o.id,
+      nombre: o.nombre,
+      bolsillo: (moneda === 'USD' ? 'dolares' : 'ahorros') as Bolsillo,
+      objetivo_id: o.id,
+      saldo: Number(o.apartado),
+    }));
+  if (moneda === 'USD') {
+    return [
+      { clave: 'dolares', nombre: 'Dólares libres', bolsillo: 'dolares', objetivo_id: null, saldo: Number(resumen.saldos.dolares_libres) },
+      ...objetivos,
+    ];
+  }
+  return [
+    { clave: 'mes', nombre: 'Plata del mes', bolsillo: 'disponible', objetivo_id: null, saldo: Number(resumen.saldos.disponible) },
+    { clave: 'libre', nombre: 'Ahorro libre', bolsillo: 'ahorros', objetivo_id: null, saldo: Number(resumen.saldos.ahorro_libre) },
+    ...objetivos,
+  ];
 }
 
 /** Orígenes con monto mayor a cero, listos para mandar a la API. */

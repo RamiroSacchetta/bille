@@ -33,7 +33,7 @@ describe('ColaOfflineServicio', () => {
 
   beforeEach(() => {
     almacen = new AlmacenEnMemoria();
-    api = jasmine.createSpyObj<ApiServicio>('ApiServicio', ['registrarGasto', 'registrarIngreso', 'registrarCompraTarjeta']);
+    api = jasmine.createSpyObj<ApiServicio>('ApiServicio', ['registrarGasto', 'registrarIngreso', 'registrarCompraTarjeta', 'cambiar']);
     usuarioId.set('ana');
     TestBed.configureTestingModule({
       providers: [
@@ -66,6 +66,24 @@ describe('ColaOfflineServicio', () => {
 
     expect(api.registrarGasto).toHaveBeenCalledOnceWith(gasto('100').datos);
     expect(api.registrarCompraTarjeta).toHaveBeenCalledOnceWith('visa', jasmine.objectContaining({ cuotas: 3 }));
+    expect(cola.delUsuario().length).toBe(0);
+  });
+
+  it('envía las compras y ventas de dólares hechas sin conexión', async () => {
+    const cola = TestBed.inject(ColaOfflineServicio);
+    api.cambiar.and.returnValue(ok());
+    const datos = {
+      operacion: 'compra' as const,
+      dolares: '200',
+      pesos: '240000',
+      ocurrido_en: '2026-10-28T12:00:00Z',
+      pesos_en: { bolsillo: 'ahorros' as const },
+    };
+    await cola.agregar({ tipo: 'cambio', datos });
+
+    await cola.sincronizar();
+
+    expect(api.cambiar).toHaveBeenCalledOnceWith(datos);
     expect(cola.delUsuario().length).toBe(0);
   });
 

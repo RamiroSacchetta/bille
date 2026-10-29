@@ -1,7 +1,9 @@
 // Tipos que devuelve la API. Los montos llegan como texto para no perder precisión.
 
-export type TipoMovimiento = 'ingreso' | 'gasto' | 'transferencia';
-export type Bolsillo = 'disponible' | 'ahorros';
+export type TipoMovimiento = 'ingreso' | 'gasto' | 'transferencia' | 'cambio';
+/** `disponible` y `ahorros` son pesos; `dolares` es aparte y nunca se suma a los pesos. */
+export type Bolsillo = 'disponible' | 'ahorros' | 'dolares';
+export type Moneda = 'ARS' | 'USD';
 
 export interface Ubicacion {
   bolsillo: Bolsillo;
@@ -15,7 +17,9 @@ export interface Parte extends Ubicacion {
 export interface Movimiento {
   id: string;
   tipo: TipoMovimiento;
+  /** En un cambio son los dólares comprados o vendidos. */
   monto: string;
+  moneda: Moneda;
   ocurrido_en: string;
   descripcion: string | null;
   categoria_id: string | null;
@@ -27,6 +31,7 @@ export interface Movimiento {
 export interface Objetivo {
   id: string;
   nombre: string;
+  moneda: Moneda;
   monto_meta: string;
   fecha_meta: string | null;
   archivado: boolean;
@@ -34,9 +39,18 @@ export interface Objetivo {
 }
 
 export interface Resumen {
-  saldos: { total: string; disponible: string; ahorros: string; ahorro_libre: string };
+  saldos: {
+    /** Solo pesos: disponible + ahorros. */
+    total: string;
+    disponible: string;
+    ahorros: string;
+    ahorro_libre: string;
+    dolares: string;
+    dolares_libres: string;
+  };
   ingresos_mes: string;
   gastos_mes: string;
+  gastos_dolares_mes: string;
   objetivos: Objetivo[];
   deuda_tarjetas: string;
   proximo_resumen_tarjetas: string;
@@ -78,6 +92,24 @@ export interface NuevoIngreso extends NuevoMovimientoBase {
   categoria_id?: string | null;
   metodo_pago_id?: string | null;
   destino?: Ubicacion;
+}
+
+/** Compra o venta de dólares: salen pesos y entran dólares, o al revés. */
+export interface NuevoCambio {
+  operacion: 'compra' | 'venta';
+  dolares: string;
+  pesos: string;
+  ocurrido_en: string;
+  /** De dónde salen los pesos al comprar o adónde van al vender; por defecto `disponible`. */
+  pesos_en?: { bolsillo: 'disponible' | 'ahorros' };
+  descripcion?: string | null;
+}
+
+export interface NuevoObjetivo {
+  nombre: string;
+  monto_meta: string;
+  fecha_meta?: string | null;
+  moneda?: Moneda;
 }
 
 export interface NuevaTransferencia extends NuevoMovimientoBase {

@@ -106,9 +106,10 @@ export class MovimientosPagina implements OnInit {
       if (filtro !== 'todos' && m.tipo !== filtro) continue;
       const nombre = nombreDia(new Date(m.ocurrido_en));
       const dia = dias.get(nombre) ?? { nombre, neto: 0, movimientos: [] };
-      // Las transferencias no suman ni restan al balance del día
-      if (m.tipo === 'ingreso') dia.neto += Number(m.monto);
-      if (m.tipo === 'gasto') dia.neto -= Number(m.monto);
+      // El balance del día es en pesos: transferencias, cambios y movimientos en dólares no suman ni restan
+      const enPesos = (m.moneda ?? 'ARS') === 'ARS';
+      if (enPesos && m.tipo === 'ingreso') dia.neto += Number(m.monto);
+      if (enPesos && m.tipo === 'gasto') dia.neto -= Number(m.monto);
       dia.movimientos.push(m);
       dias.set(nombre, dia);
     }
