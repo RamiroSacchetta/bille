@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 
 import { AutenticacionServicio } from '../../nucleo/autenticacion.servicio';
 import { LARGO_MINIMO_CONTRASENA, problemaContrasena } from './contrasena';
+import { errorDeRetorno } from './retorno-google';
 
 /** Iniciar sesión o crear una cuenta. Cada persona tiene su cuenta y sus datos separados. */
 @Component({
@@ -39,6 +40,12 @@ import { LARGO_MINIMO_CONTRASENA, problemaContrasena } from './contrasena';
         <button type="submit" class="boton boton-primario boton-ancho" [disabled]="enviando()">
           {{ modo() === 'ingresar' ? 'Ingresar' : 'Crear cuenta' }}
         </button>
+        @if (googleDisponible()) {
+          <p class="separador" aria-hidden="true">o</p>
+          <button type="button" class="boton boton-ancho boton-google" (click)="entrarConGoogle()" [disabled]="enviando()">
+            Continuar con Google
+          </button>
+        }
         <p class="alternar">
           @if (modo() === 'ingresar') {
             ¿No tenés cuenta? <button type="button" (click)="cambiarModo()">Creá una</button>
@@ -57,6 +64,8 @@ import { LARGO_MINIMO_CONTRASENA, problemaContrasena } from './contrasena';
     .marca p { margin: 0; font-size: 16px; color: var(--sobre-bosque-suave); line-height: 1.5; }
     form { background: var(--fondo); color: var(--tinta); border-radius: 28px 28px 0 0; padding: 28px 24px 36px; display: flex; flex-direction: column; gap: 14px; width: 100%; max-width: 560px; margin: 0 auto; }
     .ayuda { margin: -6px 0 0; font-size: 13px; color: var(--atenuado); }
+    .separador { margin: 0; text-align: center; font-size: 13px; color: var(--atenuado); }
+    .boton-google { background: var(--fondo); color: var(--tinta); border: 1px solid var(--linea); }
     .alternar { margin: 0; text-align: center; font-size: 14px; color: var(--atenuado); }
     .alternar button { min-height: 44px; border: 0; background: none; font: inherit; font-weight: 600; color: var(--tinta); text-decoration: underline; cursor: pointer; }
   `,
@@ -69,10 +78,25 @@ export class IngresoPagina {
   readonly error = signal<string | null>(null);
   readonly enviando = signal(false);
   readonly largoMinimo = LARGO_MINIMO_CONTRASENA;
+  readonly googleDisponible = signal(false);
 
   nombre = '';
   email = '';
   contrasena = '';
+
+  constructor() {
+    this.error.set(errorDeRetorno(window.location.href));
+    void this.autenticacion.googleDisponible().then((disponible) => this.googleDisponible.set(disponible));
+  }
+
+  async entrarConGoogle(): Promise<void> {
+    this.enviando.set(true);
+    const error = await this.autenticacion.entrarConGoogle();
+    if (error) {
+      this.error.set(error);
+      this.enviando.set(false);
+    }
+  }
 
   cambiarModo(): void {
     this.modo.update((m) => (m === 'ingresar' ? 'registrarse' : 'ingresar'));

@@ -52,6 +52,21 @@ insert into public.invitaciones (email) values ('amiga@ejemplo.com');
 
 Las cuentas que ya existían siguen entrando normalmente. Las contraseñas nuevas llevan al menos 8 caracteres, con letras y números.
 
+### Entrar con Google
+
+El botón "Continuar con Google" aparece solo cuando el proveedor está activo. Para activarlo en local:
+
+1. En [Google Cloud Console](https://console.cloud.google.com/apis/credentials) creá un **ID de cliente de OAuth** de tipo **Aplicación web**.
+2. En "URI de redireccionamiento autorizados" agregá `http://127.0.0.1:54321/auth/v1/callback`.
+3. Creá `supabase/.env` (no se sube a git) con:
+   ```
+   SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID=tu-id-de-cliente
+   SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET=tu-secreto
+   ```
+4. En `supabase/config.toml`, en `[auth.external.google]`, poné `enabled = true` y reiniciá con `npx supabase stop` y `npx supabase start`.
+
+La invitación también vale para Google: si el email de la cuenta de Google no está invitado, no entra. En la red local, Google solo funciona desde la PC (no acepta IPs privadas como retorno).
+
 Para desarrollar con recarga automática, en lugar de `produccion` usá `npm --prefix frontend start` y abrí http://127.0.0.1:4200 (sin service worker, así que no se instala ni funciona offline).
 
 ### Instalar en la PC

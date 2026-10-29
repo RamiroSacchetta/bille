@@ -45,6 +45,28 @@ export class AutenticacionServicio {
     return data.session ? null : 'Revisá tu email para confirmar la cuenta y después iniciá sesión.';
   }
 
+  /** Solo se muestra el botón si el proveedor está activo en Supabase (config.toml o panel de la nube). */
+  async googleDisponible(): Promise<boolean> {
+    try {
+      const respuesta = await fetch(`${entorno.supabaseUrl}/auth/v1/settings`, {
+        headers: { apikey: entorno.supabaseClaveAnonima },
+      });
+      const ajustes = (await respuesta.json()) as { external?: { google?: boolean } };
+      return ajustes.external?.google === true;
+    } catch {
+      return false;
+    }
+  }
+
+  /** Sale a Google y vuelve a /ingreso: con sesión la guardia lleva al inicio; si falla, se muestra el error. */
+  async entrarConGoogle(): Promise<string | null> {
+    const { error } = await this.cliente.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: `${window.location.origin}/ingreso` },
+    });
+    return error ? 'No pudimos entrar con Google. Probá de nuevo en un momento.' : null;
+  }
+
   async cerrarSesion(): Promise<void> {
     await this.cliente.auth.signOut();
   }
