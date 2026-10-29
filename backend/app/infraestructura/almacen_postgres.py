@@ -51,6 +51,7 @@ def _a_movimiento(fila: dict, partes: list[Parte]) -> Movimiento:
         metodo_pago_id=fila["metodo_pago_id"],
         tarjeta_id=fila["tarjeta_id"],
         moneda=Moneda(fila["moneda"]),
+        id_carga=fila["id_carga"],
         partes=partes,
     )
 
@@ -76,6 +77,7 @@ def _a_compra(fila: dict, cuotas: list[Cuota]) -> CompraTarjeta:
         comprado_en=fila["comprado_en"],
         descripcion=fila["descripcion"],
         categoria_id=fila["categoria_id"],
+        id_carga=fila["id_carga"],
         cuotas=cuotas,
     )
 
@@ -174,8 +176,9 @@ class AlmacenPostgres:
         fila = self._uno(
             """
             insert into public.movimientos
-              (usuario_id, tipo, monto, moneda, ocurrido_en, descripcion, categoria_id, metodo_pago_id, tarjeta_id)
-            values (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+              (usuario_id, tipo, monto, moneda, ocurrido_en, descripcion, categoria_id, metodo_pago_id, tarjeta_id,
+               id_carga)
+            values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             returning *
             """,
             (
@@ -188,6 +191,7 @@ class AlmacenPostgres:
                 movimiento.categoria_id,
                 movimiento.metodo_pago_id,
                 movimiento.tarjeta_id,
+                movimiento.id_carga,
             ),
         )
         with self._cx.cursor() as cursor:
@@ -208,6 +212,13 @@ class AlmacenPostgres:
                 ],
             )
         return _a_movimiento(fila, list(movimiento.partes))
+
+    def movimiento_por_id_carga(self, usuario_id: UUID, id_carga: UUID) -> Movimiento | None:
+        fila = self._uno(
+            "select id from public.movimientos where usuario_id = %s and id_carga = %s",
+            (usuario_id, id_carga),
+        )
+        return self.obtener_movimiento(usuario_id, fila["id"]) if fila else None
 
     def obtener_movimiento(self, usuario_id: UUID, movimiento_id: UUID) -> Movimiento | None:
         fila = self._uno(
@@ -438,8 +449,8 @@ class AlmacenPostgres:
         fila = self._uno(
             """
             insert into public.compras_tarjeta
-              (usuario_id, tarjeta_id, descripcion, categoria_id, monto_total, cantidad_cuotas, comprado_en)
-            values (%s, %s, %s, %s, %s, %s, %s)
+              (usuario_id, tarjeta_id, descripcion, categoria_id, monto_total, cantidad_cuotas, comprado_en, id_carga)
+            values (%s, %s, %s, %s, %s, %s, %s, %s)
             returning *
             """,
             (
@@ -450,6 +461,7 @@ class AlmacenPostgres:
                 compra.monto_total,
                 compra.cantidad_cuotas,
                 compra.comprado_en,
+                compra.id_carga,
             ),
         )
         with self._cx.cursor() as cursor:
@@ -474,6 +486,13 @@ class AlmacenPostgres:
                 Cuota(fila["numero"], fila["monto"], fila["mes_resumen"])
             )
         return cuotas
+
+    def compra_por_id_carga(self, usuario_id: UUID, id_carga: UUID) -> CompraTarjeta | None:
+        fila = self._uno(
+            "select id from public.compras_tarjeta where usuario_id = %s and id_carga = %s",
+            (usuario_id, id_carga),
+        )
+        return self.obtener_compra_tarjeta(usuario_id, fila["id"]) if fila else None
 
     def obtener_compra_tarjeta(self, usuario_id: UUID, compra_id: UUID) -> CompraTarjeta | None:
         fila = self._uno(

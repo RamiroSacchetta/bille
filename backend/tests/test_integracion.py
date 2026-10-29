@@ -189,6 +189,32 @@ def test_una_cuenta_no_ve_ni_usa_los_datos_de_la_otra(cliente, ana, beto):
     )
 
 
+def test_la_misma_carga_reenviada_se_guarda_una_sola_vez(cliente):
+    eli = _crear_cuenta("Eli")
+    visa = cliente.post(
+        "/api/tarjetas", headers=eli, json={"nombre": "Visa", "dia_cierre": 25, "dia_vencimiento": 5}
+    ).json()
+    cargas = [
+        ("/api/movimientos/ingresos", {"monto": "1000", "ocurrido_en": FECHA, "id_carga": str(uuid4())}),
+        ("/api/movimientos/gastos", {"monto": "100", "ocurrido_en": FECHA, "id_carga": str(uuid4())}),
+        (
+            f"/api/tarjetas/{visa['id']}/compras",
+            {"monto": "300", "cuotas": 3, "comprado_en": "2026-10-10", "id_carga": str(uuid4())},
+        ),
+    ]
+
+    for ruta, cuerpo in cargas:
+        primera = cliente.post(ruta, headers=eli, json=cuerpo)
+        segunda = cliente.post(ruta, headers=eli, json=cuerpo)
+        assert (primera.status_code, segunda.status_code) == (201, 201), segunda.text
+        assert segunda.json()["id"] == primera.json()["id"]
+
+    assert len(cliente.get("/api/movimientos", headers=eli).json()) == 2
+    assert len(cliente.get(f"/api/tarjetas/{visa['id']}/compras", headers=eli).json()) == 1
+    resumen = cliente.get("/api/resumen", headers=eli, params={"mes": "2026-10"}).json()
+    assert resumen["saldos"]["disponible"] == "900.00"
+
+
 def test_dolares_de_punta_a_punta(cliente):
     dani = _crear_cuenta("Dani")
     cliente.post("/api/movimientos/ingresos", headers=dani, json={"monto": "2000000", "ocurrido_en": FECHA})

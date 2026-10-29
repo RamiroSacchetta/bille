@@ -76,6 +76,12 @@ class AlmacenEnMemoria:
         self.movimientos[guardado.id] = guardado
         return guardado
 
+    def movimiento_por_id_carga(self, usuario_id: UUID, id_carga: UUID) -> Movimiento | None:
+        return next(
+            (m for m in self.movimientos.values() if m.usuario_id == usuario_id and m.id_carga == id_carga),
+            None,
+        )
+
     def obtener_movimiento(self, usuario_id: UUID, movimiento_id: UUID) -> Movimiento | None:
         movimiento = self.movimientos.get(movimiento_id)
         return movimiento if movimiento and movimiento.usuario_id == usuario_id else None
@@ -172,6 +178,11 @@ class AlmacenEnMemoria:
         compra.id = compra.id or uuid4()
         self.compras[compra.id] = compra
         return compra
+
+    def compra_por_id_carga(self, usuario_id: UUID, id_carga: UUID) -> CompraTarjeta | None:
+        return next(
+            (c for c in self.compras.values() if c.usuario_id == usuario_id and c.id_carga == id_carga), None
+        )
 
     def obtener_compra_tarjeta(self, usuario_id: UUID, compra_id: UUID) -> CompraTarjeta | None:
         compra = self.compras.get(compra_id)

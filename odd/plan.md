@@ -179,7 +179,8 @@ Con HTTPS, Bille se puede instalar y usar offline también en el celular.
 - Ajustes de deploy: URLs por entorno (local vs nube) en el frontend; psycopg con `prepare_threshold=None` para el
   pooler de Supabase; verificar login con las claves de firma nuevas (JWKS, ya soportado); CORS solo para el dominio
   real; secretos en variables de entorno.
-- **Opción C (decisión del usuario):** la app LEE directo de Supabase (RLS + vistas de saldos, objetivos, deudas de
+- **Reemplazada (2026-10-29):** "vamos con el cron que le pega a la api cada 10 mins, si veo que mis amigos no la usan, lo saco y listo". Un cron externo mantiene despierta la API y el service worker muestra los últimos datos si tarda. Detalle en `odd/tasks/sprint-4.md`.
+- ~~**Opción C (decisión del usuario):**~~ la app LEE directo de Supabase (RLS + vistas de saldos, objetivos, deudas de
   tarjetas y totales del mes), así abre con los números al instante aunque Render esté dormido; ESCRIBE por la API en
   segundo plano con la cola. Tests que comparen los saldos de las vistas con los del backend.
 - Al abrir la app se despierta la API (pedido a `/api/salud`) y nunca se muestra el estado vacío mientras se carga.

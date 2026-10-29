@@ -29,6 +29,8 @@ class IngresoEntrada(BaseModel):
     metodo_pago_id: UUID | None = None
     descripcion: str | None = Field(default=None, max_length=200)
     destino: UbicacionEntrada = UbicacionEntrada(bolsillo=Bolsillo.DISPONIBLE)
+    # Lo genera el dispositivo: si la misma carga llega dos veces, se devuelve lo ya guardado
+    id_carga: UUID | None = None
 
 
 class GastoEntrada(BaseModel):
@@ -39,6 +41,8 @@ class GastoEntrada(BaseModel):
     descripcion: str | None = Field(default=None, max_length=200)
     # Sin orígenes, el gasto sale entero de la plata del mes
     origenes: list[OrigenEntrada] | None = Field(default=None, max_length=10)
+    # Lo genera el dispositivo: si la misma carga llega dos veces, se devuelve lo ya guardado
+    id_carga: UUID | None = None
 
 
 class TransferenciaEntrada(BaseModel):
@@ -63,6 +67,8 @@ class CambioEntrada(BaseModel):
     # De dónde salen los pesos al comprar o adónde entran al vender
     pesos_en: PesosEntrada = PesosEntrada()
     descripcion: str | None = Field(default=None, max_length=200)
+    # Lo genera el dispositivo: si la misma carga llega dos veces, se devuelve lo ya guardado
+    id_carga: UUID | None = None
 
 
 class ParteSalida(BaseModel):
@@ -272,6 +278,8 @@ class CompraTarjetaEntrada(BaseModel):
     comprado_en: date
     categoria_id: UUID | None = None
     descripcion: str | None = Field(default=None, max_length=200)
+    # Lo genera el dispositivo: si la misma carga llega dos veces, se devuelve lo ya guardado
+    id_carga: UUID | None = None
 
 
 class CuotaSalida(BaseModel):

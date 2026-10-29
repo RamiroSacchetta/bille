@@ -78,8 +78,16 @@ def registrar_compra(
     comprado_en: date,
     categoria_id: UUID | None = None,
     descripcion: str | None = None,
+    id_carga: UUID | None = None,
 ) -> CompraTarjeta:
-    """Anota una compra con tarjeta. No mueve plata: suma cuotas a la deuda estimada de la tarjeta."""
+    """Anota una compra con tarjeta. No mueve plata: suma cuotas a la deuda estimada de la tarjeta.
+
+    Si la misma carga (mismo `id_carga`) llega dos veces, devuelve la compra ya guardada.
+    """
+    if id_carga is not None:
+        almacen.bloquear_usuario(usuario_id)
+        if (previa := almacen.compra_por_id_carga(usuario_id, id_carga)) is not None:
+            return previa
     monto = reglas.normalizar_monto(monto)
     tarjeta = _tarjeta(almacen, usuario_id, tarjeta_id)
     if not tarjeta.activa:
@@ -100,6 +108,7 @@ def registrar_compra(
         cuotas=cuotas,
         descripcion=descripcion,
         categoria_id=categoria_id,
+        id_carga=id_carga,
     )
     return almacen.guardar_compra_tarjeta(compra)
 

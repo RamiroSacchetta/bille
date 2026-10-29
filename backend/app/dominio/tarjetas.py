@@ -41,6 +41,7 @@ class CompraTarjeta:
     cuotas: list[Cuota]
     descripcion: str | None = None
     categoria_id: UUID | None = None
+    id_carga: UUID | None = None
     id: UUID | None = None
 
 

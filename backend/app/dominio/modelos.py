@@ -85,6 +85,8 @@ class Movimiento:
     tarjeta_id: UUID | None = None
     # En un cambio el monto son los dólares, así que la moneda es USD
     moneda: Moneda = Moneda.ARS
+    # Lo genera el dispositivo: si la misma carga llega dos veces, se guarda una sola
+    id_carga: UUID | None = None
     id: UUID | None = None
 
 

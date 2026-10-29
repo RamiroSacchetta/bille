@@ -108,6 +108,7 @@ def registrar_ingreso(datos: IngresoEntrada, usuario: UsuarioActual, abrir: Abri
             metodo_pago_id=datos.metodo_pago_id,
             descripcion=datos.descripcion,
             destino=_ubicacion(datos.destino),
+            id_carga=datos.id_carga,
         )
     return MovimientoSalida.desde(movimiento)
 
@@ -125,6 +126,7 @@ def registrar_gasto(datos: GastoEntrada, usuario: UsuarioActual, abrir: Abrir):
             metodo_pago_id=datos.metodo_pago_id,
             descripcion=datos.descripcion,
             origenes=origenes,
+            id_carga=datos.id_carga,
         )
     return MovimientoSalida.desde(movimiento)
 
@@ -158,6 +160,7 @@ def cambiar(datos: CambioEntrada, usuario: UsuarioActual, abrir: Abrir):
             datos.ocurrido_en,
             pesos_en=cu.ubicacion(datos.pesos_en.bolsillo),
             descripcion=datos.descripcion,
+            id_carga=datos.id_carga,
         )
     return MovimientoSalida.desde(movimiento)
 
@@ -307,6 +310,7 @@ def registrar_compra(tarjeta_id: UUID, datos: CompraTarjetaEntrada, usuario: Usu
             datos.comprado_en,
             categoria_id=datos.categoria_id,
             descripcion=datos.descripcion,
+            id_carga=datos.id_carga,
         )
     return CompraTarjetaSalida.desde(compra)
 

@@ -56,6 +56,17 @@ def _validar_metodo_pago(almacen: Almacen, usuario_id: UUID, metodo_pago_id: UUI
         raise NoEncontrado("El método de pago no existe")
 
 
+def _ya_guardado(almacen: Almacen, usuario_id: UUID, id_carga: UUID | None) -> Movimiento | None:
+    """Si la carga ya llegó antes (la cola del dispositivo la reenvió), devuelve lo guardado.
+
+    Bloquea al usuario antes de buscar, así dos reenvíos simultáneos no se guardan los dos.
+    """
+    if id_carga is None:
+        return None
+    almacen.bloquear_usuario(usuario_id)
+    return almacen.movimiento_por_id_carga(usuario_id, id_carga)
+
+
 def _guardar_con_saldos(almacen: Almacen, movimiento: Movimiento) -> Movimiento:
     """Bloquea al usuario, comprueba que ningún saldo quede negativo y guarda."""
     reglas.validar_cuadre(movimiento.tipo, movimiento.monto, movimiento.partes)
@@ -73,7 +84,10 @@ def registrar_ingreso(
     metodo_pago_id: UUID | None = None,
     descripcion: str | None = None,
     destino: Ubicacion = DISPONIBLE,
+    id_carga: UUID | None = None,
 ) -> Movimiento:
+    if (previo := _ya_guardado(almacen, usuario_id, id_carga)) is not None:
+        return previo
     monto = reglas.normalizar_monto(monto)
     _validar_categoria(almacen, usuario_id, categoria_id, TipoMovimiento.INGRESO)
     _validar_metodo_pago(almacen, usuario_id, metodo_pago_id)
@@ -88,6 +102,7 @@ def registrar_ingreso(
         categoria_id=categoria_id,
         metodo_pago_id=metodo_pago_id,
         moneda=destino.moneda,
+        id_carga=id_carga,
     )
     return _guardar_con_saldos(almacen, movimiento)
 
@@ -102,12 +117,15 @@ def registrar_gasto(
     descripcion: str | None = None,
     origenes: list[tuple[Ubicacion, Decimal]] | None = None,
     tarjeta_id: UUID | None = None,
+    id_carga: UUID | None = None,
 ) -> Movimiento:
     """Sin orígenes, el gasto sale entero de la plata del mes. Con orígenes, es un pago dividido.
 
     La moneda del gasto es la de sus orígenes: si salen de dólares, es un gasto en dólares.
     Con `tarjeta_id` es el pago del resumen de esa tarjeta (ver aplicacion.tarjetas.pagar_resumen).
     """
+    if (previo := _ya_guardado(almacen, usuario_id, id_carga)) is not None:
+        return previo
     monto = reglas.normalizar_monto(monto)
     origenes = origenes or [(DISPONIBLE, monto)]
     partes = reglas.partes_de_gasto(monto, origenes)
@@ -128,6 +146,7 @@ def registrar_gasto(
         metodo_pago_id=metodo_pago_id,
         tarjeta_id=tarjeta_id,
         moneda=moneda,
+        id_carga=id_carga,
     )
     return _guardar_con_saldos(almacen, movimiento)
 
@@ -165,11 +184,14 @@ def cambiar(
     ocurrido_en: datetime,
     pesos_en: Ubicacion = DISPONIBLE,
     descripcion: str | None = None,
+    id_carga: UUID | None = None,
 ) -> Movimiento:
     """Comprar o vender dólares. No es ingreso ni gasto: la plata cambia de moneda.
 
     El monto del movimiento son los dólares; los pesos quedan en la parte en pesos, así se sabe a cuánto se cambió.
     """
+    if (previo := _ya_guardado(almacen, usuario_id, id_carga)) is not None:
+        return previo
     dolares = reglas.normalizar_monto(dolares)
     pesos = reglas.normalizar_monto(pesos)
     movimiento = Movimiento(
@@ -180,6 +202,7 @@ def cambiar(
         partes=reglas.partes_de_cambio(operacion, dolares, pesos, pesos_en),
         descripcion=descripcion,
         moneda=Moneda.USD,
+        id_carga=id_carga,
     )
     return _guardar_con_saldos(almacen, movimiento)
 
