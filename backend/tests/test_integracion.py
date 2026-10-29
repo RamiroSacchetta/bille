@@ -8,6 +8,7 @@ Se saltean si el Supabase local no está corriendo.
 from uuid import uuid4
 
 import httpx
+import psycopg
 import pytest
 from fastapi.testclient import TestClient
 
@@ -34,19 +35,32 @@ if not _supabase_disponible():
     pytest.skip("Supabase local no está corriendo", allow_module_level=True)
 
 
-def _crear_cuenta(nombre: str) -> dict[str, str]:
-    respuesta = httpx.post(
+def _registrarse(email: str, nombre: str) -> httpx.Response:
+    return httpx.post(
         f"{configuracion().supabase_url}/auth/v1/signup",
         headers={"apikey": CLAVE_ANONIMA},
-        json={
-            "email": f"{nombre}-{uuid4().hex[:8]}@ejemplo.com",
-            "password": "clave-de-prueba",
-            "data": {"nombre": nombre},
-        },
+        json={"email": email, "password": "clave-de-prueba-1", "data": {"nombre": nombre}},
         timeout=10,
     )
+
+
+def _invitar(email: str) -> None:
+    with psycopg.connect(configuracion().url_base_datos, autocommit=True) as conexion:
+        conexion.execute("insert into public.invitaciones (email) values (%s)", (email,))
+
+
+def _crear_cuenta(nombre: str) -> dict[str, str]:
+    email = f"{nombre}-{uuid4().hex[:8]}@ejemplo.com"
+    _invitar(email)
+    respuesta = _registrarse(email, nombre)
     respuesta.raise_for_status()
     return {"Authorization": f"Bearer {respuesta.json()['access_token']}"}
+
+
+def test_sin_invitacion_no_se_puede_crear_una_cuenta():
+    respuesta = _registrarse(f"intruso-{uuid4().hex[:8]}@ejemplo.com", "Intruso")
+    assert respuesta.status_code == 403
+    assert "solo por invitación" in respuesta.json()["msg"]
 
 
 @pytest.fixture(scope="module")

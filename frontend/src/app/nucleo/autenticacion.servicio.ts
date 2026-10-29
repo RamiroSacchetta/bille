@@ -56,5 +56,7 @@ function traducirError(mensaje: string): string {
   if (/password should be at least/i.test(mensaje)) return 'La contraseña tiene que tener al menos 8 caracteres.';
   if (/password should contain/i.test(mensaje)) return 'La contraseña tiene que tener letras y números.';
   if (/valid email/i.test(mensaje)) return 'Escribí un email válido.';
+  // Mensaje propio del hook de invitaciones (supabase/migrations/*_invitaciones.sql)
+  if (/solo por invitaci/i.test(mensaje)) return mensaje;
   return 'No pudimos conectarnos. Probá de nuevo en un momento.';
 }

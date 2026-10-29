@@ -42,6 +42,16 @@ npm --prefix frontend run produccion
 
 Abrí http://127.0.0.1:8080 y creá una cuenta por persona. Supabase Studio queda en http://127.0.0.1:54323 y los emails de prueba en http://127.0.0.1:54324.
 
+### Invitar a alguien
+
+Bille es solo por invitación: solo se puede crear una cuenta (con email o con Google) si el email está en la tabla `invitaciones`. Para invitar a alguien, en Studio → SQL Editor:
+
+```sql
+insert into public.invitaciones (email) values ('amiga@ejemplo.com');
+```
+
+Las cuentas que ya existían siguen entrando normalmente. Las contraseñas nuevas llevan al menos 8 caracteres, con letras y números.
+
 Para desarrollar con recarga automática, en lugar de `produccion` usá `npm --prefix frontend start` y abrí http://127.0.0.1:4200 (sin service worker, así que no se instala ni funciona offline).
 
 ### Instalar en la PC
