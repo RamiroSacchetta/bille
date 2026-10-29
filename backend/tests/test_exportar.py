@@ -56,11 +56,12 @@ def test_csv_con_encabezados_signos_nombres_y_partes():
 
     lineas = contenido.lstrip(BOM).split("\r\n")
     assert contenido.startswith(BOM)
-    assert lineas[0] == "Fecha;Tipo;Descripción;Categoría;Método de pago;Monto;De dónde / a dónde"
-    assert lineas[1] == "27/10/2026;Ingreso;;;;1000000,00;Plata del mes 1000000,00"
-    assert lineas[2] == "27/10/2026;Transferencia;;;;300000,00;Plata del mes -300000,00 | Viaje 300000,00"
+    assert lineas[0] == "Fecha;Tipo;Descripción;Categoría;Método de pago;Monto;Moneda;De dónde / a dónde"
+    assert lineas[1] == "27/10/2026;Ingreso;;;;1000000,00;ARS;Plata del mes 1000000,00"
+    assert lineas[2] == "27/10/2026;Transferencia;;;;300000,00;ARS;Plata del mes -300000,00 | Viaje 300000,00"
     assert lineas[3] == (
-        '27/10/2026;Gasto;"Arreglo del auto; urgente";Auto;Efectivo;-100000,00;Plata del mes -50000,00 | Viaje -50000,00'
+        '27/10/2026;Gasto;"Arreglo del auto; urgente";Auto;Efectivo;-100000,00;ARS;'
+        "Plata del mes -50000,00 | Viaje -50000,00"
     )
 
 

@@ -7,7 +7,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 from app.aplicacion.casos_uso import Resumen
-from app.dominio.modelos import Bolsillo, Movimiento, Objetivo, TipoMovimiento
+from app.dominio.modelos import Bolsillo, Moneda, Movimiento, Objetivo, OperacionCambio, TipoMovimiento
 from app.dominio.tarjetas import CompraTarjeta, EstadoTarjeta
 
 Monto = Decimal
@@ -49,6 +49,22 @@ class TransferenciaEntrada(BaseModel):
     descripcion: str | None = Field(default=None, max_length=200)
 
 
+class PesosEntrada(BaseModel):
+    """Dónde están los pesos de un cambio: la plata del mes o el ahorro libre."""
+
+    bolsillo: Bolsillo = Bolsillo.DISPONIBLE
+
+
+class CambioEntrada(BaseModel):
+    operacion: OperacionCambio
+    dolares: Monto
+    pesos: Monto
+    ocurrido_en: datetime
+    # De dónde salen los pesos al comprar o adónde entran al vender
+    pesos_en: PesosEntrada = PesosEntrada()
+    descripcion: str | None = Field(default=None, max_length=200)
+
+
 class ParteSalida(BaseModel):
     bolsillo: Bolsillo
     objetivo_id: UUID | None
@@ -59,6 +75,7 @@ class MovimientoSalida(BaseModel):
     id: UUID
     tipo: TipoMovimiento
     monto: Monto
+    moneda: Moneda
     ocurrido_en: datetime
     descripcion: str | None
     categoria_id: UUID | None
@@ -72,6 +89,7 @@ class MovimientoSalida(BaseModel):
             id=m.id,
             tipo=m.tipo,
             monto=m.monto,
+            moneda=m.moneda,
             ocurrido_en=m.ocurrido_en,
             descripcion=m.descripcion,
             categoria_id=m.categoria_id,
@@ -88,6 +106,7 @@ class ObjetivoEntrada(BaseModel):
     nombre: str = Field(max_length=80)
     monto_meta: Monto
     fecha_meta: date | None = None
+    moneda: Moneda = Moneda.ARS
 
 
 class ObjetivoCambios(BaseModel):
@@ -100,6 +119,7 @@ class ObjetivoCambios(BaseModel):
 class ObjetivoSalida(BaseModel):
     id: UUID
     nombre: str
+    moneda: Moneda
     monto_meta: Monto
     fecha_meta: date | None
     archivado: bool
@@ -110,6 +130,7 @@ class ObjetivoSalida(BaseModel):
         return cls(
             id=o.id,
             nombre=o.nombre,
+            moneda=o.moneda,
             monto_meta=o.monto_meta,
             fecha_meta=o.fecha_meta,
             archivado=o.archivado,
@@ -122,12 +143,15 @@ class SaldosSalida(BaseModel):
     disponible: Monto
     ahorros: Monto
     ahorro_libre: Monto
+    dolares: Monto
+    dolares_libres: Monto
 
 
 class ResumenSalida(BaseModel):
     saldos: SaldosSalida
     ingresos_mes: Monto
     gastos_mes: Monto
+    gastos_dolares_mes: Monto
     objetivos: list[ObjetivoSalida]
     deuda_tarjetas: Monto
     proximo_resumen_tarjetas: Monto
@@ -137,10 +161,16 @@ class ResumenSalida(BaseModel):
         s = r.saldos
         return cls(
             saldos=SaldosSalida(
-                total=s.total, disponible=s.disponible, ahorros=s.ahorros, ahorro_libre=s.ahorro_libre
+                total=s.total,
+                disponible=s.disponible,
+                ahorros=s.ahorros,
+                ahorro_libre=s.ahorro_libre,
+                dolares=s.dolares,
+                dolares_libres=s.dolares_libres,
             ),
             ingresos_mes=r.ingresos_periodo,
             gastos_mes=r.gastos_periodo,
+            gastos_dolares_mes=r.gastos_dolares_periodo,
             objetivos=[ObjetivoSalida.desde(o.objetivo, o.apartado) for o in r.objetivos],
             deuda_tarjetas=r.deuda_tarjetas,
             proximo_resumen_tarjetas=r.proximo_resumen_tarjetas,

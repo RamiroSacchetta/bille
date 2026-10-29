@@ -8,13 +8,23 @@ from zoneinfo import ZoneInfo
 
 from app.dominio.modelos import Bolsillo, Movimiento, TipoMovimiento
 
-ENCABEZADOS = ["Fecha", "Tipo", "Descripción", "Categoría", "Método de pago", "Monto", "De dónde / a dónde"]
+ENCABEZADOS = [
+    "Fecha",
+    "Tipo",
+    "Descripción",
+    "Categoría",
+    "Método de pago",
+    "Monto",
+    "Moneda",
+    "De dónde / a dónde",
+]
 # Marca de orden de bytes: Excel la usa para detectar UTF-8
 BOM = chr(0xFEFF)
 TIPOS = {
     TipoMovimiento.INGRESO: "Ingreso",
     TipoMovimiento.GASTO: "Gasto",
     TipoMovimiento.TRANSFERENCIA: "Transferencia",
+    TipoMovimiento.CAMBIO: "Cambio",
 }
 
 
@@ -26,9 +36,18 @@ def numero(valor: Decimal) -> str:
 def _ubicacion(bolsillo: Bolsillo, objetivo_id: UUID | None, objetivos: dict[UUID, str]) -> str:
     if bolsillo is Bolsillo.DISPONIBLE:
         return "Plata del mes"
-    if objetivo_id is None:
-        return "Ahorro libre"
-    return objetivos.get(objetivo_id, "Objetivo")
+    if objetivo_id is not None:
+        return objetivos.get(objetivo_id, "Objetivo")
+    return "Dólares libres" if bolsillo is Bolsillo.DOLARES else "Ahorro libre"
+
+
+def _signo(m: Movimiento) -> int:
+    """Los gastos van en negativo; un cambio, según entren (compra) o salgan (venta) dólares."""
+    if m.tipo is TipoMovimiento.GASTO:
+        return -1
+    if m.tipo is TipoMovimiento.CAMBIO:
+        return 1 if any(p.ubicacion.bolsillo is Bolsillo.DOLARES and p.monto > 0 for p in m.partes) else -1
+    return 1
 
 
 def movimientos_a_csv(
@@ -46,7 +65,7 @@ def movimientos_a_csv(
     escritor = csv.writer(salida, delimiter=";", lineterminator="\r\n")
     escritor.writerow(ENCABEZADOS)
     for m in sorted(movimientos, key=lambda m: m.ocurrido_en):
-        signo = -1 if m.tipo is TipoMovimiento.GASTO else 1
+        signo = _signo(m)
         metodo = tarjetas.get(m.tarjeta_id) if m.tarjeta_id else metodos.get(m.metodo_pago_id, "")
         partes = " | ".join(
             f"{_ubicacion(p.ubicacion.bolsillo, p.ubicacion.objetivo_id, objetivos)} {numero(p.monto)}"
@@ -60,6 +79,7 @@ def movimientos_a_csv(
                 categorias.get(m.categoria_id, "") if m.categoria_id else "",
                 metodo or "",
                 numero(m.monto * signo),
+                m.moneda.value,
                 partes,
             ]
         )

@@ -10,6 +10,7 @@ from fastapi import APIRouter, Query, Response, status
 
 from app.api.dependencias import Abrir, UsuarioActual
 from app.api.esquemas import (
+    CambioEntrada,
     CategoriaEntrada,
     CategoriaSalida,
     CompraTarjetaEntrada,
@@ -145,6 +146,22 @@ def transferir(datos: TransferenciaEntrada, usuario: UsuarioActual, abrir: Abrir
     return MovimientoSalida.desde(movimiento)
 
 
+@rutas.post("/movimientos/cambios", response_model=MovimientoSalida, status_code=201, tags=["movimientos"])
+def cambiar(datos: CambioEntrada, usuario: UsuarioActual, abrir: Abrir):
+    with abrir() as almacen:
+        movimiento = cu.cambiar(
+            almacen,
+            usuario,
+            datos.operacion,
+            datos.dolares,
+            datos.pesos,
+            datos.ocurrido_en,
+            pesos_en=cu.ubicacion(datos.pesos_en.bolsillo),
+            descripcion=datos.descripcion,
+        )
+    return MovimientoSalida.desde(movimiento)
+
+
 @rutas.delete("/movimientos/{movimiento_id}", status_code=204, tags=["movimientos"])
 def eliminar_movimiento(movimiento_id: UUID, usuario: UsuarioActual, abrir: Abrir):
     with abrir() as almacen:
@@ -158,17 +175,16 @@ def eliminar_movimiento(movimiento_id: UUID, usuario: UsuarioActual, abrir: Abri
 @rutas.get("/objetivos", response_model=list[ObjetivoSalida], tags=["objetivos"])
 def listar_objetivos(usuario: UsuarioActual, abrir: Abrir):
     with abrir() as almacen:
-        apartados = almacen.saldos(usuario).apartados
-        return [
-            ObjetivoSalida.desde(o, apartados.get(o.id, Decimal(0)))
-            for o in almacen.listar_objetivos(usuario)
-        ]
+        saldos = almacen.saldos(usuario)
+        return [ObjetivoSalida.desde(o, saldos.apartado(o.id)) for o in almacen.listar_objetivos(usuario)]
 
 
 @rutas.post("/objetivos", response_model=ObjetivoSalida, status_code=201, tags=["objetivos"])
 def crear_objetivo(datos: ObjetivoEntrada, usuario: UsuarioActual, abrir: Abrir):
     with abrir() as almacen:
-        objetivo = cu.crear_objetivo(almacen, usuario, datos.nombre, datos.monto_meta, datos.fecha_meta)
+        objetivo = cu.crear_objetivo(
+            almacen, usuario, datos.nombre, datos.monto_meta, datos.fecha_meta, moneda=datos.moneda
+        )
     return ObjetivoSalida.desde(objetivo, Decimal(0))
 
 
@@ -178,7 +194,7 @@ def actualizar_objetivo(objetivo_id: UUID, datos: ObjetivoCambios, usuario: Usua
         objetivo = cu.actualizar_objetivo(
             almacen, usuario, objetivo_id, **datos.model_dump(exclude_unset=True)
         )
-        apartado = almacen.saldos(usuario).apartados.get(objetivo_id, Decimal(0))
+        apartado = almacen.saldos(usuario).apartado(objetivo_id)
     return ObjetivoSalida.desde(objetivo, apartado)
 
 

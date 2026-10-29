@@ -5,7 +5,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID, uuid4
 
-from app.dominio.modelos import Movimiento, Objetivo, Saldos, TipoMovimiento
+from app.dominio.modelos import Moneda, Movimiento, Objetivo, Saldos, TipoMovimiento
 from app.dominio.puertos import Categoria, FiltroMovimientos, MetodoPago, Perfil
 from app.dominio.tarjetas import CompraTarjeta, Tarjeta
 
@@ -45,13 +45,31 @@ class AlmacenEnMemoria:
 
     def totales_periodo(self, usuario_id: UUID, desde: datetime, hasta: datetime) -> tuple[Decimal, Decimal]:
         ingresos = gastos = Decimal(0)
-        for m in self.movimientos.values():
-            if m.usuario_id == usuario_id and desde <= m.ocurrido_en < hasta:
-                if m.tipo is TipoMovimiento.INGRESO:
-                    ingresos += m.monto
-                elif m.tipo is TipoMovimiento.GASTO:
-                    gastos += m.monto
+        for m in self._del_periodo(usuario_id, desde, hasta, Moneda.ARS):
+            if m.tipo is TipoMovimiento.INGRESO:
+                ingresos += m.monto
+            elif m.tipo is TipoMovimiento.GASTO:
+                gastos += m.monto
         return ingresos, gastos
+
+    def gastos_en_dolares(self, usuario_id: UUID, desde: datetime, hasta: datetime) -> Decimal:
+        return sum(
+            (
+                m.monto
+                for m in self._del_periodo(usuario_id, desde, hasta, Moneda.USD)
+                if m.tipo is TipoMovimiento.GASTO
+            ),
+            Decimal(0),
+        )
+
+    def _del_periodo(
+        self, usuario_id: UUID, desde: datetime, hasta: datetime, moneda: Moneda
+    ) -> list[Movimiento]:
+        return [
+            m
+            for m in self.movimientos.values()
+            if m.usuario_id == usuario_id and desde <= m.ocurrido_en < hasta and m.moneda is moneda
+        ]
 
     def guardar_movimiento(self, movimiento: Movimiento) -> Movimiento:
         guardado = replace(movimiento, id=movimiento.id or uuid4())

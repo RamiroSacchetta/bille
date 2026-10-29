@@ -95,6 +95,8 @@ def test_flujo_de_ingreso_ahorro_objetivo_y_gasto_dividido(cliente):
         "disponible": "900000.00",
         "ahorros": "250000.00",
         "ahorro_libre": "170000.00",
+        "dolares": "0",
+        "dolares_libres": "0",
     }
     assert (resumen["ingresos_mes"], resumen["gastos_mes"]) == ("1250000.00", "100000.00")
     assert resumen["objetivos"][0]["apartado"] == "80000.00"

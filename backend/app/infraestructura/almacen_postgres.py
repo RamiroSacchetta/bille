@@ -16,7 +16,16 @@ from psycopg import Connection
 from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool
 
-from app.dominio.modelos import Bolsillo, Movimiento, Objetivo, Parte, Saldos, TipoMovimiento, Ubicacion
+from app.dominio.modelos import (
+    Bolsillo,
+    Moneda,
+    Movimiento,
+    Objetivo,
+    Parte,
+    Saldos,
+    TipoMovimiento,
+    Ubicacion,
+)
 from app.dominio.puertos import Categoria, FiltroMovimientos, MetodoPago, Perfil
 from app.dominio.tarjetas import CompraTarjeta, Cuota, Tarjeta
 
@@ -41,6 +50,7 @@ def _a_movimiento(fila: dict, partes: list[Parte]) -> Movimiento:
         categoria_id=fila["categoria_id"],
         metodo_pago_id=fila["metodo_pago_id"],
         tarjeta_id=fila["tarjeta_id"],
+        moneda=Moneda(fila["moneda"]),
         partes=partes,
     )
 
@@ -82,6 +92,7 @@ def _a_objetivo(fila: dict) -> Objetivo:
         monto_meta=fila["monto_meta"],
         fecha_meta=fila["fecha_meta"],
         archivado=fila["archivado"],
+        moneda=Moneda(fila["moneda"]),
     )
 
 
@@ -111,21 +122,26 @@ class AlmacenPostgres:
 
     def saldos(self, usuario_id: UUID) -> Saldos:
         fila = self._uno(
-            "select disponible, ahorros from public.saldos_bolsillos where usuario_id = %s", (usuario_id,)
+            "select disponible, ahorros, dolares from public.saldos_bolsillos where usuario_id = %s",
+            (usuario_id,),
         )
         apartados = self._todos(
             """
-            select objetivo_id, sum(monto) as apartado
+            select objetivo_id, bolsillo, sum(monto) as apartado
             from public.partes_movimiento
             where usuario_id = %s and objetivo_id is not null
-            group by objetivo_id
+            group by objetivo_id, bolsillo
             """,
             (usuario_id,),
         )
         if fila is None:
             return Saldos(Decimal(0), Decimal(0), {})
         return Saldos(
-            fila["disponible"], fila["ahorros"], {a["objetivo_id"]: a["apartado"] for a in apartados}
+            fila["disponible"],
+            fila["ahorros"],
+            {a["objetivo_id"]: a["apartado"] for a in apartados if a["bolsillo"] != Bolsillo.DOLARES},
+            fila["dolares"],
+            {a["objetivo_id"]: a["apartado"] for a in apartados if a["bolsillo"] == Bolsillo.DOLARES},
         )
 
     def totales_periodo(self, usuario_id: UUID, desde: datetime, hasta: datetime) -> tuple[Decimal, Decimal]:
@@ -135,11 +151,22 @@ class AlmacenPostgres:
               coalesce(sum(monto) filter (where tipo = 'ingreso'), 0)::numeric(14, 2) as ingresos,
               coalesce(sum(monto) filter (where tipo = 'gasto'), 0)::numeric(14, 2) as gastos
             from public.movimientos
-            where usuario_id = %s and ocurrido_en >= %s and ocurrido_en < %s
+            where usuario_id = %s and ocurrido_en >= %s and ocurrido_en < %s and moneda = 'ARS'
             """,
             (usuario_id, desde, hasta),
         )
         return fila["ingresos"], fila["gastos"]
+
+    def gastos_en_dolares(self, usuario_id: UUID, desde: datetime, hasta: datetime) -> Decimal:
+        fila = self._uno(
+            """
+            select coalesce(sum(monto), 0)::numeric(14, 2) as gastos
+            from public.movimientos
+            where usuario_id = %s and ocurrido_en >= %s and ocurrido_en < %s and moneda = 'USD' and tipo = 'gasto'
+            """,
+            (usuario_id, desde, hasta),
+        )
+        return fila["gastos"]
 
     # -- Movimientos ----------------------------------------------------------
 
@@ -147,14 +174,15 @@ class AlmacenPostgres:
         fila = self._uno(
             """
             insert into public.movimientos
-              (usuario_id, tipo, monto, ocurrido_en, descripcion, categoria_id, metodo_pago_id, tarjeta_id)
-            values (%s, %s, %s, %s, %s, %s, %s, %s)
+              (usuario_id, tipo, monto, moneda, ocurrido_en, descripcion, categoria_id, metodo_pago_id, tarjeta_id)
+            values (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             returning *
             """,
             (
                 movimiento.usuario_id,
                 movimiento.tipo.value,
                 movimiento.monto,
+                movimiento.moneda.value,
                 movimiento.ocurrido_en,
                 movimiento.descripcion,
                 movimiento.categoria_id,
@@ -237,8 +265,8 @@ class AlmacenPostgres:
         if objetivo.id is None:
             fila = self._uno(
                 """
-                insert into public.objetivos (usuario_id, nombre, monto_meta, fecha_meta, archivado)
-                values (%s, %s, %s, %s, %s) returning *
+                insert into public.objetivos (usuario_id, nombre, monto_meta, fecha_meta, archivado, moneda)
+                values (%s, %s, %s, %s, %s, %s) returning *
                 """,
                 (
                     objetivo.usuario_id,
@@ -246,6 +274,7 @@ class AlmacenPostgres:
                     objetivo.monto_meta,
                     objetivo.fecha_meta,
                     objetivo.archivado,
+                    objetivo.moneda.value,
                 ),
             )
         else:

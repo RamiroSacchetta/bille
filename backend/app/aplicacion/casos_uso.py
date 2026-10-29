@@ -10,8 +10,10 @@ from app.dominio.errores import DatosInvalidos, NoEncontrado
 from app.dominio.modelos import (
     DISPONIBLE,
     Bolsillo,
+    Moneda,
     Movimiento,
     Objetivo,
+    OperacionCambio,
     Saldos,
     TipoMovimiento,
     Ubicacion,
@@ -33,6 +35,8 @@ def _validar_ubicaciones(almacen: Almacen, usuario_id: UUID, ubicaciones: list[U
             raise NoEncontrado("El objetivo no existe")
         if objetivo.archivado:
             raise DatosInvalidos("El objetivo está archivado")
+        if objetivo.moneda is not ubicacion.moneda:
+            raise DatosInvalidos("El objetivo es en otra moneda")
 
 
 def _validar_categoria(
@@ -83,6 +87,7 @@ def registrar_ingreso(
         descripcion=descripcion,
         categoria_id=categoria_id,
         metodo_pago_id=metodo_pago_id,
+        moneda=destino.moneda,
     )
     return _guardar_con_saldos(almacen, movimiento)
 
@@ -100,10 +105,15 @@ def registrar_gasto(
 ) -> Movimiento:
     """Sin orígenes, el gasto sale entero de la plata del mes. Con orígenes, es un pago dividido.
 
+    La moneda del gasto es la de sus orígenes: si salen de dólares, es un gasto en dólares.
     Con `tarjeta_id` es el pago del resumen de esa tarjeta (ver aplicacion.tarjetas.pagar_resumen).
     """
     monto = reglas.normalizar_monto(monto)
     origenes = origenes or [(DISPONIBLE, monto)]
+    partes = reglas.partes_de_gasto(monto, origenes)
+    moneda = reglas.moneda_de(partes)
+    if tarjeta_id is not None and moneda is not Moneda.ARS:
+        raise DatosInvalidos("El pago de la tarjeta se hace en pesos")
     _validar_categoria(almacen, usuario_id, categoria_id, TipoMovimiento.GASTO)
     _validar_metodo_pago(almacen, usuario_id, metodo_pago_id)
     _validar_ubicaciones(almacen, usuario_id, [ubicacion for ubicacion, _ in origenes])
@@ -112,11 +122,12 @@ def registrar_gasto(
         tipo=TipoMovimiento.GASTO,
         monto=monto,
         ocurrido_en=ocurrido_en,
-        partes=reglas.partes_de_gasto(monto, origenes),
+        partes=partes,
         descripcion=descripcion,
         categoria_id=categoria_id,
         metodo_pago_id=metodo_pago_id,
         tarjeta_id=tarjeta_id,
+        moneda=moneda,
     )
     return _guardar_con_saldos(almacen, movimiento)
 
@@ -140,6 +151,35 @@ def transferir(
         ocurrido_en=ocurrido_en,
         partes=reglas.partes_de_transferencia(monto, desde, hacia),
         descripcion=descripcion,
+        moneda=desde.moneda,
+    )
+    return _guardar_con_saldos(almacen, movimiento)
+
+
+def cambiar(
+    almacen: Almacen,
+    usuario_id: UUID,
+    operacion: OperacionCambio,
+    dolares: Decimal,
+    pesos: Decimal,
+    ocurrido_en: datetime,
+    pesos_en: Ubicacion = DISPONIBLE,
+    descripcion: str | None = None,
+) -> Movimiento:
+    """Comprar o vender dólares. No es ingreso ni gasto: la plata cambia de moneda.
+
+    El monto del movimiento son los dólares; los pesos quedan en la parte en pesos, así se sabe a cuánto se cambió.
+    """
+    dolares = reglas.normalizar_monto(dolares)
+    pesos = reglas.normalizar_monto(pesos)
+    movimiento = Movimiento(
+        usuario_id=usuario_id,
+        tipo=TipoMovimiento.CAMBIO,
+        monto=dolares,
+        ocurrido_en=ocurrido_en,
+        partes=reglas.partes_de_cambio(operacion, dolares, pesos, pesos_en),
+        descripcion=descripcion,
+        moneda=Moneda.USD,
     )
     return _guardar_con_saldos(almacen, movimiento)
 
@@ -161,12 +201,18 @@ def eliminar_movimiento(almacen: Almacen, usuario_id: UUID, movimiento_id: UUID)
 
 
 def crear_objetivo(
-    almacen: Almacen, usuario_id: UUID, nombre: str, monto_meta: Decimal, fecha_meta: date | None = None
+    almacen: Almacen,
+    usuario_id: UUID,
+    nombre: str,
+    monto_meta: Decimal,
+    fecha_meta: date | None = None,
+    moneda: Moneda = Moneda.ARS,
 ) -> Objetivo:
+    """Un objetivo en pesos se aparta desde ahorros; uno en dólares, desde los dólares."""
     nombre = nombre.strip()
     if not nombre:
         raise DatosInvalidos("El objetivo necesita un nombre")
-    objetivo = Objetivo(usuario_id, nombre, reglas.normalizar_monto(monto_meta), fecha_meta)
+    objetivo = Objetivo(usuario_id, nombre, reglas.normalizar_monto(monto_meta), fecha_meta, moneda=moneda)
     return almacen.guardar_objetivo(objetivo)
 
 
@@ -191,8 +237,8 @@ def actualizar_objetivo(
     if fecha_meta is not None:
         objetivo.fecha_meta = fecha_meta
     if archivado is not None:
-        if archivado and almacen.saldos(usuario_id).apartados.get(objetivo_id, Decimal(0)) != 0:
-            raise DatosInvalidos("Devolvé lo apartado a ahorros antes de archivar el objetivo")
+        if archivado and almacen.saldos(usuario_id).apartado(objetivo_id) != 0:
+            raise DatosInvalidos("Devolvé lo apartado antes de archivar el objetivo")
         objetivo.archivado = archivado
     return almacen.guardar_objetivo(objetivo)
 
@@ -225,6 +271,8 @@ class Resumen:
     # Estimación de lo que se debe en tarjetas: no forma parte de "Tu plata"
     deuda_tarjetas: Decimal = Decimal(0)
     proximo_resumen_tarjetas: Decimal = Decimal(0)
+    # Va aparte: ingresos y gastos del período son solo en pesos
+    gastos_dolares_periodo: Decimal = Decimal(0)
 
 
 def consultar_resumen(
@@ -235,7 +283,7 @@ def consultar_resumen(
     saldos = almacen.saldos(usuario_id)
     ingresos, gastos = almacen.totales_periodo(usuario_id, desde, hasta)
     objetivos = [
-        ResumenObjetivo(objetivo, saldos.apartados.get(objetivo.id, Decimal(0)))
+        ResumenObjetivo(objetivo, saldos.apartado(objetivo.id))
         for objetivo in almacen.listar_objetivos(usuario_id)
         if not objetivo.archivado
     ]
@@ -252,6 +300,7 @@ def consultar_resumen(
         objetivos,
         sum((t.deuda_estimada for t in tarjetas), Decimal(0)),
         sum((t.proximo_resumen for t in tarjetas), Decimal(0)),
+        almacen.gastos_en_dolares(usuario_id, desde, hasta),
     )
 
 

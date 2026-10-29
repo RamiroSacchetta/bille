@@ -151,6 +151,8 @@ def test_flujo_completo_con_gasto_dividido(cliente, ana):
         "disponible": "800000.00",
         "ahorros": "350000.00",
         "ahorro_libre": "270000.00",
+        "dolares": "0.00",
+        "dolares_libres": "0.00",
     }
     assert (resumen["ingresos_mes"], resumen["gastos_mes"]) == ("1250000.00", "100000.00")
     assert resumen["objetivos"][0]["apartado"] == "80000.00"
@@ -189,6 +191,64 @@ def test_una_cuenta_no_ve_ni_usa_los_datos_de_la_otra(cliente, ana, beto):
         cliente.get("/api/resumen", headers=beto, params={"mes": "2026-10"}).json()["saldos"]["total"]
         == "1000.00"
     )
+
+
+def test_dolares_de_punta_a_punta(cliente):
+    dani = _crear_cuenta("Dani")
+    cliente.post("/api/movimientos/ingresos", headers=dani, json={"monto": "2000000", "ocurrido_en": FECHA})
+    compra = cliente.post(
+        "/api/movimientos/cambios",
+        headers=dani,
+        json={"operacion": "compra", "dolares": "1000", "pesos": "1200000", "ocurrido_en": FECHA},
+    )
+    assert compra.status_code == 201, compra.text
+    viaje = cliente.post(
+        "/api/objetivos", headers=dani, json={"nombre": "Viaje", "monto_meta": "2000", "moneda": "USD"}
+    ).json()
+    for ruta, cuerpo in [
+        (
+            "/api/movimientos/transferencias",
+            {
+                "monto": "300",
+                "ocurrido_en": FECHA,
+                "desde": {"bolsillo": "dolares"},
+                "hacia": {"bolsillo": "dolares", "objetivo_id": viaje["id"]},
+            },
+        ),
+        (
+            "/api/movimientos/gastos",
+            {"monto": "50", "ocurrido_en": FECHA, "origenes": [{"bolsillo": "dolares", "monto": "50"}]},
+        ),
+        (
+            "/api/movimientos/ingresos",
+            {"monto": "200", "ocurrido_en": FECHA, "destino": {"bolsillo": "dolares"}},
+        ),
+    ]:
+        respuesta = cliente.post(ruta, headers=dani, json=cuerpo)
+        assert respuesta.status_code == 201, respuesta.text
+
+    resumen = cliente.get("/api/resumen", headers=dani, params={"mes": "2026-10"}).json()
+
+    assert resumen["saldos"] == {
+        "total": "800000.00",
+        "disponible": "800000.00",
+        "ahorros": "0.00",
+        "ahorro_libre": "0.00",
+        "dolares": "1150.00",
+        "dolares_libres": "850.00",
+    }
+    assert (resumen["ingresos_mes"], resumen["gastos_mes"], resumen["gastos_dolares_mes"]) == (
+        "2000000.00",
+        "0.00",
+        "50.00",
+    )
+    assert [(o["moneda"], o["apartado"]) for o in resumen["objetivos"]] == [("USD", "300.00")]
+    venta = cliente.post(
+        "/api/movimientos/cambios",
+        headers=dani,
+        json={"operacion": "venta", "dolares": "900", "pesos": "1000000", "ocurrido_en": FECHA},
+    )
+    assert venta.status_code == 409
 
 
 def test_tarjeta_de_credito_de_punta_a_punta(cliente, beto):

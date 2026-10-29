@@ -51,7 +51,10 @@ class Almacen(Protocol):
     def saldos(self, usuario_id: UUID) -> Saldos: ...
 
     def totales_periodo(self, usuario_id: UUID, desde: datetime, hasta: datetime) -> tuple[Decimal, Decimal]:
-        """Devuelve (ingresos, gastos) del período; las transferencias no cuentan."""
+        """Devuelve (ingresos, gastos) en pesos del período; las transferencias y los cambios no cuentan."""
+
+    def gastos_en_dolares(self, usuario_id: UUID, desde: datetime, hasta: datetime) -> Decimal:
+        """Gastos en dólares del período, que nunca se suman a los gastos en pesos."""
 
     def guardar_movimiento(self, movimiento: Movimiento) -> Movimiento: ...
 
