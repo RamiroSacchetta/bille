@@ -87,6 +87,8 @@ En Movimientos, "Exportar CSV" descarga los movimientos del mes elegido, listos 
 
 Los valores de conexión locales (`backend/app/config.py` y `frontend/src/environments/entorno.ts`) son los que muestra `npx supabase status`. Para cambiarlos en el backend, creá `backend/.env` con `URL_BASE_DATOS`, `SUPABASE_URL` o `SUPABASE_JWT_SECRET`.
 
+Fuera de tu PC el backend se corre con `ENTORNO=produccion`: así no usa ningún valor local y no arranca si falta alguna de esas tres variables o si el secreto es el de Supabase local.
+
 ## Tests
 
 ```bash
