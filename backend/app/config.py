@@ -26,6 +26,8 @@ class Configuracion(BaseSettings):
         r"|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})(:\d+)?$"
     )
     zona_horaria: str = "America/Argentina/Buenos_Aires"
+    # Una carga hace unos 5 pedidos (guardar y refrescar saldos): 120 sobra para el uso normal
+    limite_pedidos_por_minuto: int = 120
 
     @model_validator(mode="after")
     def _sin_valores_locales_fuera_de_desarrollo(self) -> Self:

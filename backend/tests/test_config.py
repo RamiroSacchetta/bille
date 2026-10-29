@@ -28,7 +28,9 @@ def test_fuera_de_desarrollo_no_arranca_sin_variables(monkeypatch):
     monkeypatch.setenv("ENTORNO", "produccion")
     with pytest.raises(ValidationError) as error:
         Configuracion(_env_file=None)
-    assert "Faltan variables de entorno: URL_BASE_DATOS, SUPABASE_URL, SUPABASE_JWT_SECRET" in str(error.value)
+    assert "Faltan variables de entorno: URL_BASE_DATOS, SUPABASE_URL, SUPABASE_JWT_SECRET" in str(
+        error.value
+    )
 
 
 def test_fuera_de_desarrollo_avisa_solo_las_que_faltan(monkeypatch):

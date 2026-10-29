@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from psycopg_pool import ConnectionPool
 
+from app.api.limite import LimitePedidos, LimitePedidosMiddleware
 from app.api.rutas import rutas
 from app.config import configuracion
 from app.dominio.errores import DatosInvalidos, NoEncontrado, SaldoInsuficiente
@@ -21,8 +22,13 @@ async def ciclo_de_vida(app: FastAPI):
     pool.close()
 
 
-def crear_app(con_base_de_datos: bool = True) -> FastAPI:
+def crear_app(con_base_de_datos: bool = True, limite_por_minuto: int | None = None) -> FastAPI:
     app = FastAPI(title="Bille API", version="0.1.0", lifespan=ciclo_de_vida if con_base_de_datos else None)
+    # Se agrega antes que CORS para quedar adentro: así el 429 también sale con los encabezados de CORS
+    app.add_middleware(
+        LimitePedidosMiddleware,
+        limite=LimitePedidos(maximo=limite_por_minuto or configuracion().limite_pedidos_por_minuto),
+    )
     app.add_middleware(
         CORSMiddleware,
         allow_origins=configuracion().origenes_cors,
