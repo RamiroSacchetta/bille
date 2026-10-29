@@ -186,7 +186,8 @@ Con HTTPS, Bille se puede instalar y usar offline también en el celular.
 - Cuentas en GitHub, Supabase, Vercel y Render las crea el usuario; el repo se sube a GitHub.
 - Registro solo por invitación: hecho en el Sprint 3.
 - Pendientes que dejó el Sprint 3: en `frontend/vercel.json`, poner en `connect-src` las URLs reales de la API y de Supabase (hoy supone `*.onrender.com` y `*.supabase.co`), y que el frontend use HTTPS para la API (`upgrade-insecure-requests`); uvicorn con `--proxy-headers`; "Confirm email" activado en la nube; activar Google en la nube con su cliente OAuth y la URL de retorno de producción.
-- Detectado en el Sprint 3, viene de antes: borrar un usuario que tiene movimientos asignados a objetivos falla, porque la FK compuesta `partes_movimiento` → `objetivos` no tiene `on delete cascade`. Hay que corregirlo antes de que alguien quiera borrar su cuenta.
+- ~~Borrar un usuario con movimientos en objetivos fallaba~~: corregido (2026-10-29, migración `20261029110000_borrar_cuenta.sql`, la FK `partes_movimiento` → `objetivos` ahora es diferible).
+- Dólares (hecho antes del deploy, `odd/tasks/dolares.md`): la opción C tiene que leer `dolares`/`apartado_dolares` de `saldos_bolsillos` y los totales del mes filtrando por `moneda`.
 - `scripts/backup.ps1` recibe la URL de la base como argumento de `supabase db dump`, así que se ve en la lista de procesos de la PC donde corre.
 
 ## Sprint 5 — Objetivos compartidos

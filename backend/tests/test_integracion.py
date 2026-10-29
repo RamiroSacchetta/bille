@@ -57,11 +57,7 @@ def limpiar_cuentas():
     """Al terminar borra las cuentas de prueba (sus datos caen en cascada) y sus invitaciones."""
     yield
     with psycopg.connect(configuracion().url_base_datos, autocommit=True) as conexion:
-        # Primero los movimientos: la FK de partes_movimiento a objetivos no borra en cascada
-        conexion.execute(
-            "delete from public.movimientos where usuario_id in (select id from auth.users where email = any(%s))",
-            (EMAILS_CREADOS,),
-        )
+        # Borrar la cuenta se lleva en cascada sus objetivos, movimientos y partes
         conexion.execute("delete from auth.users where email = any(%s)", (EMAILS_CREADOS,))
         conexion.execute("delete from public.invitaciones where email = any(%s)", (EMAILS_CREADOS,))
 
