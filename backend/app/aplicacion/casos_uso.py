@@ -238,7 +238,8 @@ def actualizar_objetivo(
         objetivo.fecha_meta = fecha_meta
     if archivado is not None:
         if archivado and almacen.saldos(usuario_id).apartado(objetivo_id) != 0:
-            raise DatosInvalidos("Devolvé lo apartado antes de archivar el objetivo")
+            destino = "dólares" if objetivo.moneda is Moneda.USD else "ahorros"
+            raise DatosInvalidos(f"Devolvé lo apartado a {destino} antes de archivar el objetivo")
         objetivo.archivado = archivado
     return almacen.guardar_objetivo(objetivo)
 

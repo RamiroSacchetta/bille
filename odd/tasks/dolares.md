@@ -35,7 +35,7 @@ Fuera de alcance: tarjetas de crédito en dólares, cotización automática.
 |----|-------|------|--------|--------|
 | T1 | S1–S6 | inline | hecho | 8832797 |
 | T2 | S1–S6, S8 | inline | hecho | 4538728 |
-| T3 | S7, S8 | delegada (paralelo con T1–T2, superficies disjuntas) | en curso | |
+| T3 | S7, S8 | delegada (paralelo con T1–T2, superficies disjuntas) | hecho | 67b67be |
 
 - T1: base de datos: bolsillo `dolares`, moneda en objetivos, tipo `cambio`, validaciones y saldos; tests pgTAP.
 - T2: backend: dominio, casos de uso, almacén y API; tests.
@@ -53,3 +53,12 @@ Fuera de alcance: tarjetas de crédito en dólares, cotización automática.
   - Se mantuvo el mensaje de siempre para un objetivo en disponible.
   - El CSV suma la columna "Moneda".
   - El cambio tiene sus partes ordenadas: primero sale y después entra.
+- **L4** (2026-10-29) T3 (delegada): frontend 37/37 y build de producción OK.
+- **L5** (2026-10-29) Verificador independiente: S1–S7 cumplen; S8 parcial por un blocker, B1.
+  - **B1:** el mensaje al archivar un objetivo en pesos había cambiado sin que nadie lo pidiera.
+    - Se corrigió (RED → GREEN): "Devolvé lo apartado a ahorros antes de archivar el objetivo" en pesos y "… a dólares …" en dólares.
+    - Backend: 104 tests.
+  - **Advisories:**
+    - La base acepta cambios con partes en objetivos, aunque el backend nunca los arma.
+    - La memoria devuelve "0" y Postgres "0.00".
+    - El orden de los errores en un gasto con varios problemas cambió.

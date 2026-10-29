@@ -216,8 +216,16 @@ def test_no_se_archiva_un_objetivo_en_dolares_con_plata_apartada(almacen, usuari
     cu.registrar_ingreso(almacen, usuario, D(100), AHORA, destino=DOLARES_LIBRES)
     cu.transferir(almacen, usuario, D(100), AHORA, DOLARES_LIBRES, Ubicacion(Bolsillo.DOLARES, viaje.id))
 
-    with pytest.raises(DatosInvalidos, match="archivar"):
+    with pytest.raises(DatosInvalidos, match="^Devolvé lo apartado a dólares antes de archivar el objetivo$"):
         cu.actualizar_objetivo(almacen, usuario, viaje.id, archivado=True)
+
+
+def test_el_mensaje_para_archivar_un_objetivo_en_pesos_es_el_de_siempre(almacen, usuario):
+    auto = cu.crear_objetivo(almacen, usuario, "Auto", D(1_000_000))
+    cu.transferir(almacen, usuario, D(100), AHORA, DISPONIBLE, Ubicacion(Bolsillo.AHORROS, auto.id))
+
+    with pytest.raises(DatosInvalidos, match="^Devolvé lo apartado a ahorros antes de archivar el objetivo$"):
+        cu.actualizar_objetivo(almacen, usuario, auto.id, archivado=True)
 
 
 def test_borrar_una_compra_de_dolares_ya_gastados_se_rechaza(almacen, usuario):
