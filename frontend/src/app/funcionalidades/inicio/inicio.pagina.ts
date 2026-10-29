@@ -3,6 +3,7 @@ import { RouterLink } from '@angular/router';
 
 import { MontoPipe } from '../../compartido/monto.pipe';
 import { BarraProgresoComponent } from '../../compartido/ui/barra-progreso.component';
+import { BotonInstalarComponent } from '../../compartido/ui/boton-instalar.component';
 import { FilaMovimientoComponent } from '../../compartido/ui/fila-movimiento.component';
 import { NavegacionComponent } from '../../compartido/ui/navegacion.component';
 import { ApiServicio, mensajeDeError } from '../../nucleo/api.servicio';
@@ -14,7 +15,7 @@ import { Movimiento, Resumen } from '../../nucleo/modelos';
 /** Inicio: tu plata, el balance del mes, los objetivos y los últimos movimientos. */
 @Component({
   selector: 'bi-inicio',
-  imports: [RouterLink, MontoPipe, BarraProgresoComponent, FilaMovimientoComponent, NavegacionComponent],
+  imports: [RouterLink, MontoPipe, BarraProgresoComponent, BotonInstalarComponent, FilaMovimientoComponent, NavegacionComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <main class="pantalla">
@@ -31,6 +32,8 @@ import { Movimiento, Resumen } from '../../nucleo/modelos';
       </header>
 
       @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+
+      <bi-boton-instalar />
 
       @if (cola.delUsuario().length) {
         <section class="tarjeta pendientes" aria-labelledby="pendientes-titulo" role="status">

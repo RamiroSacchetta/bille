@@ -3,6 +3,7 @@ import { RouterOutlet } from '@angular/router';
 
 import { ApiServicio } from './nucleo/api.servicio';
 import { ColaOfflineServicio } from './nucleo/cola-offline';
+import { InstalacionServicio } from './nucleo/instalacion';
 
 @Component({
   selector: 'app-root',
@@ -15,5 +16,7 @@ export class AppComponent {
     inject(ApiServicio).salud().subscribe({ error: () => {} });
     // Arranca la cola, que envía lo que quedó guardado en cuanto hay sesión
     inject(ColaOfflineServicio);
+    // Escucha desde el arranque el aviso del navegador de que se puede instalar
+    inject(InstalacionServicio);
   }
 }

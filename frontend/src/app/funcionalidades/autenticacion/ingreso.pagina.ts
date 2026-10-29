@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/cor
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 
+import { BotonInstalarComponent } from '../../compartido/ui/boton-instalar.component';
 import { AutenticacionServicio } from '../../nucleo/autenticacion.servicio';
 import { LARGO_MINIMO_CONTRASENA, problemaContrasena } from './contrasena';
 import { errorDeRetorno } from './retorno-google';
@@ -9,7 +10,7 @@ import { errorDeRetorno } from './retorno-google';
 /** Iniciar sesión o crear una cuenta. Cada persona tiene su cuenta y sus datos separados. */
 @Component({
   selector: 'bi-ingreso',
-  imports: [FormsModule],
+  imports: [FormsModule, BotonInstalarComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <main class="ingreso">
@@ -17,6 +18,7 @@ import { errorDeRetorno } from './retorno-google';
         <span class="logo" aria-hidden="true">B</span>
         <h1>Tu plata,<br />clara y simple.</h1>
         <p>Registrá efectivo, ingresos y objetivos de ahorro en un solo lugar.</p>
+        <bi-boton-instalar [sobreOscuro]="true" />
       </div>
       <form (ngSubmit)="enviar()">
         <h2>{{ modo() === 'ingresar' ? 'Iniciar sesión' : 'Crear cuenta' }}</h2>

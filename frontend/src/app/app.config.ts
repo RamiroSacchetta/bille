@@ -15,7 +15,8 @@ export const appConfig: ApplicationConfig = {
     { provide: AlmacenPendientes, useExisting: AlmacenPendientesIndexedDb },
     provideServiceWorker('ngsw-worker.js', {
       enabled: !isDevMode(),
-      registrationStrategy: 'registerWhenStable:30000',
+      // Pronto: el navegador ofrece instalar la app recién cuando hay service worker
+      registrationStrategy: 'registerWhenStable:5000',
     }),
   ],
 };
