@@ -213,3 +213,30 @@ def test_eliminar_objetivo_devuelve_lo_apartado_y_editar_borra_la_fecha(cliente)
     resumen = cliente.get("/api/resumen", params={"mes": "2026-10"}).json()
     assert resumen["objetivos"] == []
     assert resumen["saldos"]["ahorro_libre"] == "1000.00"
+
+
+def test_cambiar_la_moneda_principal_conserva_el_nombre(cliente):
+    cliente.patch("/api/perfil", json={"nombre_visible": "Ana"})
+
+    respuesta = cliente.patch("/api/perfil", json={"moneda_predeterminada": "BRL"})
+
+    assert respuesta.status_code == 200
+    assert (respuesta.json()["nombre_visible"], respuesta.json()["moneda_predeterminada"]) == ("Ana", "BRL")
+
+
+def test_cambiar_el_nombre_conserva_la_moneda_principal(cliente):
+    cliente.patch("/api/perfil", json={"nombre_visible": "Ana", "moneda_predeterminada": "EUR"})
+
+    respuesta = cliente.patch("/api/perfil", json={"nombre_visible": "Ana María"})
+
+    assert (respuesta.json()["nombre_visible"], respuesta.json()["moneda_predeterminada"]) == (
+        "Ana María",
+        "EUR",
+    )
+
+
+@pytest.mark.parametrize("moneda", ["USD", "XYZ", "ars"])
+def test_moneda_principal_no_soportada_responde_422(cliente, moneda):
+    respuesta = cliente.patch("/api/perfil", json={"moneda_predeterminada": moneda})
+
+    assert respuesta.status_code == 422

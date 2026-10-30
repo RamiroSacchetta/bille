@@ -6,7 +6,7 @@ import { MontoPipe } from '../../compartido/monto.pipe';
 import { ApiServicio } from '../../nucleo/api.servicio';
 import { CatalogoStore } from '../../nucleo/catalogo.store';
 import { ColaOfflineServicio, NuevaCargaPendiente } from '../../nucleo/cola-offline';
-import { claveMes, fechaParaApi, hoyLocal, montoDesdeTexto, precioPorDolar } from '../../nucleo/formato';
+import { claveMes, codigoMoneda, fechaParaApi, hoyLocal, montoDesdeTexto, nombreMoneda, precioPorDolar } from '../../nucleo/formato';
 import { Moneda, NuevoCambio, Resumen } from '../../nucleo/modelos';
 import { textoCuotas } from '../tarjetas/cuotas';
 import { estadoDivision, origenesDeGasto, origenesParaApi } from './division';
@@ -35,7 +35,7 @@ type OperacionDolares = 'compra' | 'venta' | 'tenia';
       <form class="formulario" (ngSubmit)="guardar()">
         @if (tipo() === 'gasto') {
           <div class="segmentado" role="group" aria-label="Moneda del gasto">
-            <button type="button" [attr.aria-pressed]="monedaGasto() === 'ARS'" (click)="elegirMoneda('ARS')">Pesos</button>
+            <button type="button" [attr.aria-pressed]="monedaGasto() === 'ARS'" (click)="elegirMoneda('ARS')">{{ nombreMoneda('ARS', true) }}</button>
             <button type="button" [attr.aria-pressed]="monedaGasto() === 'USD'" (click)="elegirMoneda('USD')">Dólares</button>
           </div>
         }
@@ -55,7 +55,7 @@ type OperacionDolares = 'compra' | 'venta' | 'tenia';
 
         @if (tipo() === 'dolares') {
           @if (operacion() !== 'tenia') {
-            <label class="campo">{{ operacion() === 'compra' ? 'Pagaste' : 'Te dieron' }} · ARS
+            <label class="campo">{{ operacion() === 'compra' ? 'Pagaste' : 'Te dieron' }} · {{ codigoMoneda('ARS') }}
               <input id="carga-pesos" name="pesos" inputmode="decimal" autocomplete="off" placeholder="0" class="num"
                 [ngModel]="pesosTexto()" (ngModelChange)="pesosTexto.set($event)" />
             </label>
@@ -64,7 +64,7 @@ type OperacionDolares = 'compra' | 'venta' | 'tenia';
             }
             <fieldset>
               <legend>{{ operacion() === 'compra' ? 'Sale de' : 'Va a' }}</legend>
-              <div class="segmentado" role="group" [attr.aria-label]="operacion() === 'compra' ? 'De dónde salen los pesos' : 'Adónde van los pesos'">
+              <div class="segmentado" role="group" [attr.aria-label]="(operacion() === 'compra' ? 'De dónde salen los ' : 'Adónde van los ') + nombreMoneda('ARS')">
                 <button type="button" [attr.aria-pressed]="bolsilloPesos() === 'disponible'" (click)="bolsilloPesos.set('disponible')">Plata del mes</button>
                 <button type="button" [attr.aria-pressed]="bolsilloPesos() === 'ahorros'" (click)="bolsilloPesos.set('ahorros')">Ahorros</button>
               </div>
@@ -203,6 +203,9 @@ type OperacionDolares = 'compra' | 'venta' | 'tenia';
 })
 export class CargaPagina implements OnInit {
   private readonly api = inject(ApiServicio);
+  /** Leen la moneda principal: el template se actualiza si cambia. */
+  readonly codigoMoneda = codigoMoneda;
+  readonly nombreMoneda = nombreMoneda;
   private readonly router = inject(Router);
   private readonly catalogo = inject(CatalogoStore);
   private readonly cola = inject(ColaOfflineServicio);
@@ -241,7 +244,7 @@ export class CargaPagina implements OnInit {
 
   readonly etiquetaMonto = computed(() => {
     if (this.tipo() === 'dolares') return 'Dólares · USD';
-    return this.tipo() === 'gasto' ? `Monto · ${this.monedaGasto()}` : 'Monto · ARS';
+    return `Monto · ${codigoMoneda(this.tipo() === 'gasto' ? this.monedaGasto() : 'ARS')}`;
   });
 
   readonly textoGuardar = computed(() => {
@@ -375,8 +378,8 @@ export class CargaPagina implements OnInit {
     if (!pesos) {
       this.error.set(
         operacion === 'compra'
-          ? 'Escribí cuántos pesos pagaste, con hasta dos decimales.'
-          : 'Escribí cuántos pesos te dieron, con hasta dos decimales.',
+          ? `Escribí cuántos ${nombreMoneda('ARS')} pagaste, con hasta dos decimales.`
+          : `Escribí cuántos ${nombreMoneda('ARS')} te dieron, con hasta dos decimales.`,
       );
       return;
     }

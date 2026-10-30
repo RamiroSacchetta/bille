@@ -3,7 +3,7 @@
 from uuid import UUID
 
 from app.dominio.errores import DatosInvalidos, NoEncontrado
-from app.dominio.modelos import TipoMovimiento
+from app.dominio.modelos import MonedaPrincipal, TipoMovimiento
 from app.dominio.puertos import Almacen, Categoria, MetodoPago, Perfil
 
 TIPOS_METODO_PAGO = {"efectivo", "billetera", "debito", "credito", "banco"}
@@ -25,8 +25,16 @@ def obtener_perfil(almacen: Almacen, usuario_id: UUID) -> Perfil:
     return perfil
 
 
-def actualizar_perfil(almacen: Almacen, usuario_id: UUID, nombre_visible: str) -> Perfil:
-    return almacen.actualizar_perfil(usuario_id, _texto(nombre_visible, "nombre", 80))
+def actualizar_perfil(
+    almacen: Almacen,
+    usuario_id: UUID,
+    nombre_visible: str | None = None,
+    moneda_predeterminada: MonedaPrincipal | None = None,
+) -> Perfil:
+    """Solo cambia lo que se manda. La moneda no convierte montos: cambia cómo se muestran."""
+    nombre = _texto(nombre_visible, "nombre", 80) if nombre_visible is not None else None
+    moneda = moneda_predeterminada.value if moneda_predeterminada is not None else None
+    return almacen.actualizar_perfil(usuario_id, nombre, moneda)
 
 
 def crear_categoria(

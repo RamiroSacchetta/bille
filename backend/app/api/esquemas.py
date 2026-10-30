@@ -7,7 +7,15 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 from app.aplicacion.casos_uso import Resumen
-from app.dominio.modelos import Bolsillo, Moneda, Movimiento, Objetivo, OperacionCambio, TipoMovimiento
+from app.dominio.modelos import (
+    Bolsillo,
+    Moneda,
+    MonedaPrincipal,
+    Movimiento,
+    Objetivo,
+    OperacionCambio,
+    TipoMovimiento,
+)
 from app.dominio.tarjetas import CompraTarjeta, EstadoTarjeta
 
 Monto = Decimal
@@ -190,7 +198,8 @@ class PerfilSalida(BaseModel):
 
 
 class PerfilCambios(BaseModel):
-    nombre_visible: str = Field(max_length=80)
+    nombre_visible: str | None = Field(default=None, max_length=80)
+    moneda_predeterminada: MonedaPrincipal | None = None
 
 
 class CategoriaEntrada(BaseModel):

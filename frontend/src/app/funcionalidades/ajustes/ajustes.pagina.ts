@@ -6,7 +6,8 @@ import { NavegacionComponent } from '../../compartido/ui/navegacion.component';
 import { ApiServicio, mensajeDeError } from '../../nucleo/api.servicio';
 import { AutenticacionServicio } from '../../nucleo/autenticacion.servicio';
 import { CatalogoStore } from '../../nucleo/catalogo.store';
-import { Categoria, MetodoPago } from '../../nucleo/modelos';
+import { MONEDAS_PRINCIPALES, fijarMonedaPrincipal, monedaPrincipal } from '../../nucleo/formato';
+import { Categoria, MetodoPago, MonedaPrincipal } from '../../nucleo/modelos';
 
 const TIPOS_METODO: Record<string, string> = {
   efectivo: 'Efectivo',
@@ -16,7 +17,7 @@ const TIPOS_METODO: Record<string, string> = {
   banco: 'Banco',
 };
 
-/** Ajustes: nombre, categorías, métodos de pago y cerrar sesión. */
+/** Ajustes: nombre, moneda principal, categorías, métodos de pago y cerrar sesión. */
 @Component({
   selector: 'bi-ajustes',
   imports: [FormsModule, RouterLink, NavegacionComponent],
@@ -32,6 +33,18 @@ const TIPOS_METODO: Record<string, string> = {
         </label>
         <button type="submit" class="boton">Guardar</button>
       </form>
+
+      <section class="seccion" aria-labelledby="moneda-titulo">
+        <h2 id="moneda-titulo">Moneda</h2>
+        <div class="segmentado monedas" role="group" aria-label="Moneda principal">
+          @for (m of monedas; track m.codigo) {
+            <button type="button" [attr.aria-pressed]="monedaPrincipal() === m.codigo" (click)="elegirMoneda(m.codigo)">
+              {{ m.simbolo }} {{ m.nombre }}
+            </button>
+          }
+        </div>
+        <p class="atenuado chico">Cambia cómo se muestra tu plata. Los montos no se convierten; los dólares siguen aparte.</p>
+      </section>
 
       <section class="seccion" aria-labelledby="categorias-titulo">
         <h2 id="categorias-titulo">Categorías</h2>
@@ -91,6 +104,8 @@ const TIPOS_METODO: Record<string, string> = {
     .metodo input { width: 22px; height: 22px; accent-color: var(--bosque); }
     .pila { display: flex; flex-direction: column; gap: 2px; }
     .chico { font-size: 12px; }
+    .monedas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .monedas button { text-transform: capitalize; }
     .enlace { display: flex; justify-content: space-between; align-items: center; min-height: 44px; text-decoration: none; color: var(--tinta); font-weight: 500; }
   `,
 })
@@ -101,6 +116,8 @@ export class AjustesPagina implements OnInit {
   readonly catalogo = inject(CatalogoStore);
 
   readonly tipos = TIPOS_METODO;
+  readonly monedaPrincipal = monedaPrincipal;
+  readonly monedas = (Object.keys(MONEDAS_PRINCIPALES) as MonedaPrincipal[]).map((codigo) => ({ codigo, ...MONEDAS_PRINCIPALES[codigo] }));
   readonly nombre = signal('');
   readonly tipoCategoria = signal<'gasto' | 'ingreso'>('gasto');
   readonly error = signal<string | null>(null);
@@ -110,13 +127,30 @@ export class AjustesPagina implements OnInit {
 
   ngOnInit(): void {
     this.catalogo.cargar();
-    this.api.perfil().subscribe((perfil) => this.nombre.set(perfil.nombre_visible));
+    this.api.perfil().subscribe((perfil) => {
+      this.nombre.set(perfil.nombre_visible);
+      fijarMonedaPrincipal(perfil.moneda_predeterminada);
+    });
   }
 
   guardarNombre(): void {
-    this.api.actualizarPerfil(this.nombre()).subscribe({
+    this.api.actualizarPerfil({ nombre_visible: this.nombre() }).subscribe({
       next: () => this.mostrarAviso('Nombre guardado.'),
       error: (error) => this.error.set(mensajeDeError(error)),
+    });
+  }
+
+  elegirMoneda(moneda: MonedaPrincipal): void {
+    const anterior = monedaPrincipal();
+    if (moneda === anterior) return;
+    this.error.set(null);
+    fijarMonedaPrincipal(moneda);
+    this.api.actualizarPerfil({ moneda_predeterminada: moneda }).subscribe({
+      next: () => this.mostrarAviso(`Ahora ves tu plata en ${MONEDAS_PRINCIPALES[moneda].nombre}.`),
+      error: (error) => {
+        fijarMonedaPrincipal(anterior);
+        this.error.set(mensajeDeError(error));
+      },
     });
   }
 

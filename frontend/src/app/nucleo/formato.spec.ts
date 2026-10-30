@@ -1,7 +1,47 @@
-import { claveMes, formatearConSigno, formatearMonto, montoDesdeTexto, moverMes, nombreDia, precioPorDolar, textosCambio } from './formato';
+import {
+  claveMes,
+  codigoMoneda,
+  fijarMonedaPrincipal,
+  formatearConSigno,
+  formatearMonto,
+  montoDesdeTexto,
+  moverMes,
+  nombreDia,
+  nombreMoneda,
+  precioPorDolar,
+  textosCambio,
+} from './formato';
 import { Movimiento } from './modelos';
 
 describe('formato', () => {
+  afterEach(() => fijarMonedaPrincipal('ARS'));
+
+  it('muestra la moneda principal elegida en lugar de los pesos', () => {
+    fijarMonedaPrincipal('BRL');
+    expect(formatearMonto('1250000')).toBe('R$ 1.250.000');
+    expect(formatearConSigno('-50,5'.replace(',', '.'), 'ARS')).toBe('−R$ 50,5');
+    expect(codigoMoneda('ARS')).toBe('BRL');
+    expect(nombreMoneda('ARS')).toBe('reales');
+
+    fijarMonedaPrincipal('EUR');
+    expect(formatearMonto('20.5', 'ARS', true)).toBe('€ 20,50');
+    expect(nombreMoneda('ARS')).toBe('euros');
+  });
+
+  it('muestra los yenes sin decimales', () => {
+    fijarMonedaPrincipal('JPY');
+    expect(formatearMonto('1500.75')).toBe('¥ 1.501');
+    expect(formatearMonto('1500', 'ARS', true)).toBe('¥ 1.500');
+    expect(nombreMoneda('ARS')).toBe('yenes');
+  });
+
+  it('los dólares no cambian con la moneda principal', () => {
+    fijarMonedaPrincipal('EUR');
+    expect(formatearMonto('1500', 'USD')).toBe('US$ 1.500');
+    expect(codigoMoneda('USD')).toBe('USD');
+    expect(nombreMoneda('USD')).toBe('dólares');
+  });
+
   it('formatea montos en es-AR', () => {
     expect(formatearMonto('1250000')).toBe('$ 1.250.000');
     expect(formatearMonto('482350.5', 'ARS', true)).toBe('$ 482.350,50');

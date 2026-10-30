@@ -9,7 +9,7 @@ import { NavegacionComponent } from '../../compartido/ui/navegacion.component';
 import { ApiServicio, mensajeDeError } from '../../nucleo/api.servicio';
 import { CatalogoStore } from '../../nucleo/catalogo.store';
 import { CargaPendiente, ColaOfflineServicio } from '../../nucleo/cola-offline';
-import { claveMes, formatearMonto, moverMes, nombreMes } from '../../nucleo/formato';
+import { claveMes, codigoMoneda, fijarMonedaPrincipal, formatearMonto, moverMes, nombreMes } from '../../nucleo/formato';
 import { Movimiento, Resumen } from '../../nucleo/modelos';
 
 /** Inicio: tu plata, el balance del mes, los objetivos y los últimos movimientos. */
@@ -56,7 +56,7 @@ import { Movimiento, Resumen } from '../../nucleo/modelos';
       @if (resumen(); as r) {
         <section class="destacado" aria-label="Tu plata">
           <div class="pila">
-            <span class="etiqueta">Disponible · ARS</span>
+            <span class="etiqueta">Disponible · {{ codigoMoneda('ARS') }}</span>
             <span class="num monto-grande">{{ r.saldos.disponible | monto }}</span>
             <span class="etiqueta desglose">
               <span>Total <span class="num claro">{{ r.saldos.total | monto }}</span></span>
@@ -158,6 +158,8 @@ import { Movimiento, Resumen } from '../../nucleo/modelos';
 })
 export class InicioPagina implements OnInit {
   private readonly api = inject(ApiServicio);
+  /** Lee la moneda principal: el template se actualiza si cambia. */
+  readonly codigoMoneda = codigoMoneda;
   readonly catalogo = inject(CatalogoStore);
   readonly cola = inject(ColaOfflineServicio);
 
@@ -213,7 +215,13 @@ export class InicioPagina implements OnInit {
 
   private cargar(): void {
     this.error.set(null);
-    this.api.perfil().subscribe({ next: (perfil) => this.nombre.set(perfil.nombre_visible), error: () => {} });
+    this.api.perfil().subscribe({
+      next: (perfil) => {
+        this.nombre.set(perfil.nombre_visible);
+        fijarMonedaPrincipal(perfil.moneda_predeterminada);
+      },
+      error: () => {},
+    });
     this.api.resumen(this.mes()).subscribe({
       next: (resumen) => this.resumen.set(resumen),
       error: (error) => this.error.set(mensajeDeError(error)),

@@ -86,8 +86,8 @@ export class ApiServicio {
     return this.http.get<Perfil>(`${this.url}/perfil`);
   }
 
-  actualizarPerfil(nombre_visible: string): Observable<Perfil> {
-    return this.http.patch<Perfil>(`${this.url}/perfil`, { nombre_visible });
+  actualizarPerfil(cambios: Partial<Pick<Perfil, 'nombre_visible' | 'moneda_predeterminada'>>): Observable<Perfil> {
+    return this.http.patch<Perfil>(`${this.url}/perfil`, cambios);
   }
 
   categorias(): Observable<Categoria[]> {

@@ -1,9 +1,12 @@
 // Tipos que devuelve la API. Los montos llegan como texto para no perder precisión.
 
 export type TipoMovimiento = 'ingreso' | 'gasto' | 'transferencia' | 'cambio';
-/** `disponible` y `ahorros` son pesos; `dolares` es aparte y nunca se suma a los pesos. */
+/** `disponible` y `ahorros` están en la moneda principal; `dolares` es aparte y nunca se suma a ellos. */
 export type Bolsillo = 'disponible' | 'ahorros' | 'dolares';
+/** Moneda de un bolsillo: 'ARS' es la moneda principal (se muestra según `MonedaPrincipal`) y 'USD' son los dólares. */
 export type Moneda = 'ARS' | 'USD';
+/** Cómo se muestra la moneda principal. No convierte montos. */
+export type MonedaPrincipal = 'ARS' | 'BRL' | 'JPY' | 'EUR';
 
 export interface Ubicacion {
   bolsillo: Bolsillo;
@@ -73,7 +76,7 @@ export interface MetodoPago {
 export interface Perfil {
   id: string;
   nombre_visible: string;
-  moneda_predeterminada: string;
+  moneda_predeterminada: MonedaPrincipal;
 }
 
 export interface NuevoMovimientoBase {

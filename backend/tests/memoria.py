@@ -120,8 +120,15 @@ class AlmacenEnMemoria:
     def obtener_perfil(self, usuario_id: UUID) -> Perfil | None:
         return self.perfiles.get(usuario_id)
 
-    def actualizar_perfil(self, usuario_id: UUID, nombre_visible: str) -> Perfil:
-        perfil = Perfil(usuario_id, nombre_visible, "ARS")
+    def actualizar_perfil(
+        self, usuario_id: UUID, nombre_visible: str | None, moneda_predeterminada: str | None
+    ) -> Perfil:
+        previo = self.perfiles.get(usuario_id, Perfil(usuario_id, "", "ARS"))
+        perfil = Perfil(
+            usuario_id,
+            nombre_visible or previo.nombre_visible,
+            moneda_predeterminada or previo.moneda_predeterminada,
+        )
         self.perfiles[usuario_id] = perfil
         return perfil
 

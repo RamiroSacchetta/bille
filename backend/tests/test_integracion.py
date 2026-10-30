@@ -102,6 +102,15 @@ def test_el_perfil_y_el_catalogo_se_crean_al_registrarse(cliente, ana):
     assert {"Supermercado", "Auto", "Sueldo"} <= {c["nombre"] for c in categorias}
 
 
+def test_la_moneda_principal_se_guarda_en_el_perfil(cliente, ana):
+    assert cliente.get("/api/perfil", headers=ana).json()["moneda_predeterminada"] == "ARS"
+
+    cliente.patch("/api/perfil", headers=ana, json={"moneda_predeterminada": "JPY"})
+
+    perfil = cliente.get("/api/perfil", headers=ana).json()
+    assert (perfil["nombre_visible"], perfil["moneda_predeterminada"]) == ("Ana", "JPY")
+
+
 def test_flujo_completo_con_gasto_dividido(cliente, ana):
     auto = next(c for c in cliente.get("/api/categorias", headers=ana).json() if c["nombre"] == "Auto")
     assert (

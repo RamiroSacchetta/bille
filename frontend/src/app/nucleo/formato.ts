@@ -1,15 +1,63 @@
 // Formato de montos y fechas en es-AR.
 
-import { Moneda, Movimiento } from './modelos';
+import { signal } from '@angular/core';
+
+import { Moneda, MonedaPrincipal, Movimiento } from './modelos';
 
 const pesos = new Intl.NumberFormat('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 const pesosConDecimales = new Intl.NumberFormat('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const simbolos: Record<Moneda, string> = { ARS: '$ ', USD: 'US$ ' };
+const sinDecimales = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 });
 
-/** "$ 1.250.000" o "US$ 1.500" — con `decimales` siempre muestra dos decimales. */
+/** Las monedas que se pueden elegir como principal. El yen no usa decimales. */
+export const MONEDAS_PRINCIPALES: Record<MonedaPrincipal, { simbolo: string; nombre: string; decimales: boolean }> = {
+  ARS: { simbolo: '$', nombre: 'pesos', decimales: true },
+  BRL: { simbolo: 'R$', nombre: 'reales', decimales: true },
+  JPY: { simbolo: '¥', nombre: 'yenes', decimales: false },
+  EUR: { simbolo: '€', nombre: 'euros', decimales: true },
+};
+
+const CLAVE_MONEDA = 'bille.moneda-principal';
+
+function leerMonedaGuardada(): MonedaPrincipal {
+  try {
+    const guardada = localStorage.getItem(CLAVE_MONEDA);
+    return guardada && guardada in MONEDAS_PRINCIPALES ? (guardada as MonedaPrincipal) : 'ARS';
+  } catch {
+    return 'ARS';
+  }
+}
+
+const monedaPrincipalActual = signal<MonedaPrincipal>(leerMonedaGuardada());
+/** La moneda principal del usuario. Se guarda en el dispositivo para mostrarla bien antes de que responda la API. */
+export const monedaPrincipal = monedaPrincipalActual.asReadonly();
+
+export function fijarMonedaPrincipal(moneda: MonedaPrincipal): void {
+  monedaPrincipalActual.set(moneda);
+  try {
+    localStorage.setItem(CLAVE_MONEDA, moneda);
+  } catch {
+    // Sin almacenamiento se sigue usando en memoria
+  }
+}
+
+/** Código ISO con que se muestra la moneda de un bolsillo: "BRL" para la principal si eligió reales, "USD" para los dólares. */
+export function codigoMoneda(moneda: Moneda): string {
+  return moneda === 'USD' ? 'USD' : monedaPrincipal();
+}
+
+/** "pesos", "reales", "yenes", "euros" o "dólares"; con `mayuscula`, "Pesos". */
+export function nombreMoneda(moneda: Moneda, mayuscula = false): string {
+  const nombre = moneda === 'USD' ? 'dólares' : MONEDAS_PRINCIPALES[monedaPrincipal()].nombre;
+  return mayuscula ? nombre.charAt(0).toUpperCase() + nombre.slice(1) : nombre;
+}
+
+/** "$ 1.250.000", "R$ 1.250.000" o "US$ 1.500" — con `decimales` siempre muestra dos decimales (salvo el yen). */
 export function formatearMonto(monto: string | number, moneda: Moneda = 'ARS', decimales = false): string {
   const valor = Math.abs(Number(monto));
-  return simbolos[moneda] + (decimales ? pesosConDecimales : pesos).format(valor);
+  if (moneda === 'USD') return 'US$ ' + (decimales ? pesosConDecimales : pesos).format(valor);
+  const principal = MONEDAS_PRINCIPALES[monedaPrincipal()];
+  const formato = !principal.decimales ? sinDecimales : decimales ? pesosConDecimales : pesos;
+  return `${principal.simbolo} ${formato.format(valor)}`;
 }
 
 /** Monto con signo tipográfico: "+$ 1.000", "−US$ 500". */

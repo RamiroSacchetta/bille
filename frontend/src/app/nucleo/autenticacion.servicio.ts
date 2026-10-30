@@ -2,6 +2,7 @@ import { Injectable, computed, signal } from '@angular/core';
 import { Session, SupabaseClient, createClient } from '@supabase/supabase-js';
 
 import { entorno } from '../../environments/entorno';
+import { fijarMonedaPrincipal } from './formato';
 
 /** Sesión del usuario con Supabase Auth. El resto de la app solo usa el token. */
 @Injectable({ providedIn: 'root' })
@@ -69,6 +70,8 @@ export class AutenticacionServicio {
 
   async cerrarSesion(): Promise<void> {
     await this.cliente.auth.signOut();
+    // La moneda es de la cuenta: la próxima que entre en este dispositivo arranca en pesos hasta leer su perfil
+    fijarMonedaPrincipal('ARS');
   }
 }
 

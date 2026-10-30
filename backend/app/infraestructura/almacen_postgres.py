@@ -337,10 +337,18 @@ class AlmacenPostgres:
         fila = self._uno("select * from public.perfiles where id = %s", (usuario_id,))
         return Perfil(fila["id"], fila["nombre_visible"], fila["moneda_predeterminada"]) if fila else None
 
-    def actualizar_perfil(self, usuario_id: UUID, nombre_visible: str) -> Perfil:
+    def actualizar_perfil(
+        self, usuario_id: UUID, nombre_visible: str | None, moneda_predeterminada: str | None
+    ) -> Perfil:
         fila = self._uno(
-            "update public.perfiles set nombre_visible = %s where id = %s returning *",
-            (nombre_visible, usuario_id),
+            """
+            update public.perfiles
+            set nombre_visible = coalesce(%s, nombre_visible),
+                moneda_predeterminada = coalesce(%s, moneda_predeterminada)
+            where id = %s
+            returning *
+            """,
+            (nombre_visible, moneda_predeterminada, usuario_id),
         )
         return Perfil(fila["id"], fila["nombre_visible"], fila["moneda_predeterminada"])
 

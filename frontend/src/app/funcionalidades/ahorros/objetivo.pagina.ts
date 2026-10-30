@@ -5,7 +5,7 @@ import { Router, RouterLink } from '@angular/router';
 import { MontoPipe } from '../../compartido/monto.pipe';
 import { BarraProgresoComponent } from '../../compartido/ui/barra-progreso.component';
 import { ApiServicio, mensajeDeError } from '../../nucleo/api.servicio';
-import { claveMes, fechaParaApi, hoyLocal, montoDesdeTexto, nombreDia } from '../../nucleo/formato';
+import { claveMes, codigoMoneda, fechaParaApi, hoyLocal, montoDesdeTexto, nombreDia } from '../../nucleo/formato';
 import { Movimiento, Objetivo, Resumen } from '../../nucleo/modelos';
 
 type Modo = 'apartar' | 'devolver';
@@ -42,7 +42,7 @@ type Modo = 'apartar' | 'devolver';
             <label class="campo">Nombre
               <input id="editar-nombre" name="nombre" maxlength="80" [(ngModel)]="nombreTexto" />
             </label>
-            <label class="campo">Meta · {{ o.moneda }}
+            <label class="campo">Meta · {{ codigoMoneda(o.moneda) }}
               <input id="editar-meta" name="meta" inputmode="decimal" class="num" [(ngModel)]="metaTexto" />
             </label>
             <label class="campo">Fecha meta (opcional)
@@ -66,7 +66,7 @@ type Modo = 'apartar' | 'devolver';
             @if (modo() === 'apartar') { Sale de {{ nombreLibre() }}: <span class="num">{{ libre() | monto: 'simple' : o.moneda }}</span> }
             @else { Vuelve a {{ nombreLibre() }}. Apartado: <span class="num">{{ o.apartado | monto: 'simple' : o.moneda }}</span> }
           </span>
-          <label class="campo">Monto · {{ o.moneda }}
+          <label class="campo">Monto · {{ codigoMoneda(o.moneda) }}
             <input id="objetivo-monto" name="monto" inputmode="decimal" placeholder="0" class="num" [(ngModel)]="montoTexto" />
           </label>
           @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
@@ -132,6 +132,8 @@ type Modo = 'apartar' | 'devolver';
 export class ObjetivoPagina implements OnInit {
   private readonly api = inject(ApiServicio);
   private readonly router = inject(Router);
+  /** Lee la moneda principal: el template se actualiza si cambia. */
+  readonly codigoMoneda = codigoMoneda;
 
   /** Id del objetivo, desde la ruta /ahorros/:id */
   readonly id = input.required<string>();

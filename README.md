@@ -213,3 +213,4 @@ Los tests de integración del backend se saltean si Supabase local no está corr
   - Un **objetivo** es en pesos o en dólares: el de pesos se aparta desde ahorros y el de dólares, desde los dólares.
   - Un gasto o un movimiento interno van en una sola moneda; para pasar de una a otra se compra o se vende. El pago de una tarjeta es siempre en pesos.
 - Ningún saldo puede quedar en negativo, en ninguna de las dos monedas.
+- La **moneda principal** se elige en Ajustes: pesos, reales, yenes o euros. Solo cambia cómo se muestra la plata (símbolo, código y nombre; el yen sin decimales): los montos no se convierten y los dólares siguen aparte.

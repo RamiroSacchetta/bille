@@ -27,6 +27,15 @@ class Moneda(StrEnum):
     USD = "USD"
 
 
+class MonedaPrincipal(StrEnum):
+    """Cómo se muestra la plata que no es en dólares. Internamente esos bolsillos siguen siendo `Moneda.ARS`."""
+
+    ARS = "ARS"
+    BRL = "BRL"
+    JPY = "JPY"
+    EUR = "EUR"
+
+
 class OperacionCambio(StrEnum):
     COMPRA = "compra"
     VENTA = "venta"

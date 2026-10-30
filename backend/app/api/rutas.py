@@ -220,7 +220,7 @@ def obtener_perfil(usuario: UsuarioActual, abrir: Abrir):
 @rutas.patch("/perfil", response_model=PerfilSalida, tags=["catálogo"])
 def actualizar_perfil(datos: PerfilCambios, usuario: UsuarioActual, abrir: Abrir):
     with abrir() as almacen:
-        return asdict(catalogo.actualizar_perfil(almacen, usuario, datos.nombre_visible))
+        return asdict(catalogo.actualizar_perfil(almacen, usuario, **datos.model_dump(exclude_unset=True)))
 
 
 @rutas.get("/categorias", response_model=list[CategoriaSalida], tags=["catálogo"])

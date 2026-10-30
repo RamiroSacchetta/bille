@@ -7,7 +7,7 @@ import { MontoPipe } from '../../compartido/monto.pipe';
 import { BarraProgresoComponent } from '../../compartido/ui/barra-progreso.component';
 import { NavegacionComponent } from '../../compartido/ui/navegacion.component';
 import { ApiServicio, mensajeDeError } from '../../nucleo/api.servicio';
-import { claveMes, fechaParaApi, hoyLocal, montoDesdeTexto, nombreDia } from '../../nucleo/formato';
+import { claveMes, codigoMoneda, fechaParaApi, hoyLocal, montoDesdeTexto, nombreDia, nombreMoneda } from '../../nucleo/formato';
 import { Moneda, Movimiento, Resumen } from '../../nucleo/modelos';
 
 type Accion = 'mandar' | 'pasar' | 'objetivo' | null;
@@ -34,7 +34,7 @@ interface MovimientoAhorro {
       @if (resumen(); as r) {
         <section class="destacado" aria-label="Total ahorrado">
           <div class="pila">
-            <span class="etiqueta">Ahorrado · ARS</span>
+            <span class="etiqueta">Ahorrado · {{ codigoMoneda('ARS') }}</span>
             <span class="num monto-grande">{{ r.saldos.ahorros | monto }}</span>
           </div>
           @if (reparto().length) {
@@ -57,7 +57,7 @@ interface MovimientoAhorro {
         <section class="tarjeta dolares" aria-labelledby="dolares-titulo">
           <div class="pila">
             <h2 id="dolares-titulo">Dólares</h2>
-            <span class="atenuado chico">Aparte de los pesos, sin cotización.</span>
+            <span class="atenuado chico">Aparte de los {{ nombreMoneda('ARS') }}, sin cotización.</span>
           </div>
           <div class="pila derecha">
             <span class="num total-dolares">{{ r.saldos.dolares | monto: 'simple' : 'USD' }}</span>
@@ -79,14 +79,14 @@ interface MovimientoAhorro {
               <input id="objetivo-nombre" name="nombre" maxlength="80" placeholder="Ej: Viaje a Bariloche" [(ngModel)]="nombreObjetivo" />
             </label>
             <div class="segmentado" role="group" aria-label="Moneda del objetivo">
-              <button type="button" [attr.aria-pressed]="monedaObjetivo() === 'ARS'" (click)="monedaObjetivo.set('ARS')">Pesos</button>
+              <button type="button" [attr.aria-pressed]="monedaObjetivo() === 'ARS'" (click)="monedaObjetivo.set('ARS')">{{ nombreMoneda('ARS', true) }}</button>
               <button type="button" [attr.aria-pressed]="monedaObjetivo() === 'USD'" (click)="monedaObjetivo.set('USD')">Dólares</button>
             </div>
             <label class="campo">Fecha meta (opcional)
               <input id="objetivo-fecha" name="fecha" type="date" [(ngModel)]="fechaObjetivo" />
             </label>
           }
-          <label class="campo">{{ accion() === 'objetivo' ? 'Meta · ' + monedaObjetivo() : 'Monto' }}
+          <label class="campo">{{ accion() === 'objetivo' ? 'Meta · ' + codigoMoneda(monedaObjetivo()) : 'Monto' }}
             <input id="ahorros-monto" name="monto" inputmode="decimal" placeholder="0" class="num" [(ngModel)]="montoTexto" />
           </label>
           @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
@@ -158,6 +158,9 @@ interface MovimientoAhorro {
 })
 export class AhorrosPagina implements OnInit {
   private readonly api = inject(ApiServicio);
+  /** Leen la moneda principal: el template se actualiza si cambia. */
+  readonly codigoMoneda = codigoMoneda;
+  readonly nombreMoneda = nombreMoneda;
 
   readonly resumen = signal<Resumen | null>(null);
   readonly movimientos = signal<Movimiento[]>([]);
