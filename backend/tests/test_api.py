@@ -174,3 +174,42 @@ def test_cors_acepta_solo_la_red_local(origen, permitido):
     )
 
     assert (respuesta.headers.get("access-control-allow-origin") == origen) is permitido
+
+
+def test_eliminar_objetivo_devuelve_lo_apartado_y_editar_borra_la_fecha(cliente):
+    cliente.post("/api/movimientos/ingresos", json={"monto": "1000", "ocurrido_en": FECHA})
+    cliente.post(
+        "/api/movimientos/transferencias",
+        json={
+            "monto": "1000",
+            "ocurrido_en": FECHA,
+            "desde": {"bolsillo": "disponible"},
+            "hacia": {"bolsillo": "ahorros"},
+        },
+    )
+    viaje = cliente.post(
+        "/api/objetivos", json={"nombre": "Viaje", "monto_meta": "5000", "fecha_meta": "2027-01-01"}
+    ).json()
+    cliente.post(
+        "/api/movimientos/transferencias",
+        json={
+            "monto": "400",
+            "ocurrido_en": FECHA,
+            "desde": {"bolsillo": "ahorros"},
+            "hacia": {"bolsillo": "ahorros", "objetivo_id": viaje["id"]},
+        },
+    )
+
+    editado = cliente.patch(
+        f"/api/objetivos/{viaje['id']}", json={"nombre": "Viaje al sur", "fecha_meta": None}
+    )
+    assert (editado.status_code, editado.json()["nombre"], editado.json()["fecha_meta"]) == (
+        200,
+        "Viaje al sur",
+        None,
+    )
+
+    assert cliente.delete(f"/api/objetivos/{viaje['id']}").status_code == 204
+    resumen = cliente.get("/api/resumen", params={"mes": "2026-10"}).json()
+    assert resumen["objetivos"] == []
+    assert resumen["saldos"]["ahorro_libre"] == "1000.00"

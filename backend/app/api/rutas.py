@@ -1,7 +1,7 @@
 """Rutas de la API. Cada endpoint abre la transacción del usuario, llama al caso de uso y responde."""
 
 from dataclasses import asdict
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import UUID
 from zoneinfo import ZoneInfo
@@ -204,7 +204,7 @@ def actualizar_objetivo(objetivo_id: UUID, datos: ObjetivoCambios, usuario: Usua
 @rutas.delete("/objetivos/{objetivo_id}", status_code=204, tags=["objetivos"])
 def eliminar_objetivo(objetivo_id: UUID, usuario: UsuarioActual, abrir: Abrir):
     with abrir() as almacen:
-        cu.eliminar_objetivo(almacen, usuario, objetivo_id)
+        cu.eliminar_objetivo(almacen, usuario, objetivo_id, datetime.now(UTC))
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

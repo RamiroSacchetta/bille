@@ -4,7 +4,7 @@ Cubren las reglas pedidas: gasto pagado con ahorros (S5), que cuenta en el balan
 pago dividido entre plata del mes, ahorro libre y objetivos (S7) y cuentas separadas (S1).
 """
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from uuid import uuid4
 
@@ -12,7 +12,16 @@ import pytest
 
 from app.aplicacion import casos_uso as cu
 from app.dominio.errores import DatosInvalidos, NoEncontrado, SaldoInsuficiente
-from app.dominio.modelos import AHORRO_LIBRE, DISPONIBLE, Bolsillo, TipoMovimiento, Ubicacion
+from app.dominio.modelos import (
+    AHORRO_LIBRE,
+    DISPONIBLE,
+    DOLARES_LIBRES,
+    Bolsillo,
+    Moneda,
+    OperacionCambio,
+    TipoMovimiento,
+    Ubicacion,
+)
 from tests.memoria import AlmacenEnMemoria
 
 AHORA = datetime(2026, 10, 28, 12, 0, tzinfo=UTC)
@@ -194,9 +203,56 @@ def test_no_se_puede_archivar_objetivo_con_plata_apartada(almacen, usuario, con_
         cu.actualizar_objetivo(almacen, usuario, con_plata.id, archivado=True)
 
 
-def test_objetivo_con_movimientos_no_se_borra(almacen, usuario, con_plata):
-    with pytest.raises(DatosInvalidos, match="archivalo"):
-        cu.eliminar_objetivo(almacen, usuario, con_plata.id)
+def test_eliminar_objetivo_devuelve_lo_apartado_al_ahorro_libre_y_lo_archiva(almacen, usuario, con_plata):
+    cu.eliminar_objetivo(almacen, usuario, con_plata.id, AHORA)
+
+    saldos = almacen.saldos(usuario)
+    assert (saldos.ahorros, saldos.ahorro_libre) == (D(775_000), D(775_000))
+    assert saldos.apartado(con_plata.id) == 0
+    assert almacen.obtener_objetivo(usuario, con_plata.id).archivado
+    assert [
+        o.objetivo
+        for o in cu.consultar_resumen(almacen, usuario, INICIO_MES, FIN_MES, INICIO_MES.date()).objetivos
+    ] == []
+
+
+def test_eliminar_objetivo_en_dolares_devuelve_a_los_dolares_libres(almacen, usuario):
+    cu.registrar_ingreso(almacen, usuario, D(1_200_000), AHORA)
+    cu.cambiar(almacen, usuario, OperacionCambio.COMPRA, D(1000), D(1_200_000), AHORA)
+    viaje = cu.crear_objetivo(almacen, usuario, "Viaje", D(2000), moneda=Moneda.USD)
+    cu.transferir(almacen, usuario, D(400), AHORA, DOLARES_LIBRES, Ubicacion(Bolsillo.DOLARES, viaje.id))
+
+    cu.eliminar_objetivo(almacen, usuario, viaje.id, AHORA)
+
+    saldos = almacen.saldos(usuario)
+    assert (saldos.dolares, saldos.dolares_libres, saldos.ahorros) == (D(1000), D(1000), D(0))
+    assert almacen.obtener_objetivo(usuario, viaje.id).archivado
+
+
+def test_eliminar_objetivo_sin_movimientos_lo_borra(almacen, usuario):
+    objetivo = cu.crear_objetivo(almacen, usuario, "Auto", D(1000))
+
+    cu.eliminar_objetivo(almacen, usuario, objetivo.id, AHORA)
+
+    assert almacen.obtener_objetivo(usuario, objetivo.id) is None
+    assert almacen.movimientos == {}
+
+
+def test_editar_objetivo_cambia_nombre_y_meta_sin_tocar_la_fecha(almacen, usuario):
+    objetivo = cu.crear_objetivo(almacen, usuario, "Auto", D(1000), date(2027, 1, 1))
+
+    cu.actualizar_objetivo(almacen, usuario, objetivo.id, nombre=" Moto ", monto_meta=D(500))
+
+    editado = almacen.obtener_objetivo(usuario, objetivo.id)
+    assert (editado.nombre, editado.monto_meta, editado.fecha_meta) == ("Moto", D(500), date(2027, 1, 1))
+
+
+def test_editar_objetivo_con_fecha_vacia_la_borra(almacen, usuario):
+    objetivo = cu.crear_objetivo(almacen, usuario, "Auto", D(1000), date(2027, 1, 1))
+
+    cu.actualizar_objetivo(almacen, usuario, objetivo.id, fecha_meta=None)
+
+    assert almacen.obtener_objetivo(usuario, objetivo.id).fecha_meta is None
 
 
 def test_resumen_del_inicio(almacen, usuario, con_plata):

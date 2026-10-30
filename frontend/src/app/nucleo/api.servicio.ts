@@ -77,6 +77,11 @@ export class ApiServicio {
     return this.http.patch<Objetivo>(`${this.url}/objetivos/${id}`, cambios);
   }
 
+  /** Devuelve lo apartado a lo libre y elimina el objetivo. */
+  eliminarObjetivo(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.url}/objetivos/${id}`);
+  }
+
   perfil(): Observable<Perfil> {
     return this.http.get<Perfil>(`${this.url}/perfil`);
   }

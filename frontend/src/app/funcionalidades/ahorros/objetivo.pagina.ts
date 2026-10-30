@@ -10,7 +10,7 @@ import { Movimiento, Objetivo, Resumen } from '../../nucleo/modelos';
 
 type Modo = 'apartar' | 'devolver';
 
-/** Detalle de un objetivo: lo apartado, apartar desde el ahorro libre o devolver, y su historial. */
+/** Detalle de un objetivo: lo apartado, apartar desde el ahorro libre o devolver, su historial, editarlo y eliminarlo. */
 @Component({
   selector: 'bi-objetivo',
   imports: [FormsModule, RouterLink, MontoPipe, BarraProgresoComponent],
@@ -20,6 +20,9 @@ type Modo = 'apartar' | 'devolver';
       <header class="encabezado">
         <a routerLink="/ahorros" class="boton boton-icono" aria-label="Volver a ahorros">‹</a>
         <h1 class="titulo">{{ objetivo()?.nombre }}</h1>
+        @if (objetivo() && !editando()) {
+          <button type="button" class="boton" (click)="empezarEdicion()">Editar</button>
+        }
       </header>
 
       @if (objetivo(); as o) {
@@ -33,6 +36,25 @@ type Modo = 'apartar' | 'devolver';
           </div>
         </section>
 
+        @if (editando()) {
+          <form class="tarjeta formulario" (ngSubmit)="guardarEdicion()">
+            <h2>Editar objetivo</h2>
+            <label class="campo">Nombre
+              <input id="editar-nombre" name="nombre" maxlength="80" [(ngModel)]="nombreTexto" />
+            </label>
+            <label class="campo">Meta · {{ o.moneda }}
+              <input id="editar-meta" name="meta" inputmode="decimal" class="num" [(ngModel)]="metaTexto" />
+            </label>
+            <label class="campo">Fecha meta (opcional)
+              <input id="editar-fecha" name="fecha" type="date" [(ngModel)]="fechaTexto" />
+            </label>
+            @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+            <div class="acciones">
+              <button type="button" class="boton" (click)="cancelarEdicion()">Cancelar</button>
+              <button type="submit" class="boton boton-primario" [disabled]="guardando()">Guardar</button>
+            </div>
+          </form>
+        } @else {
         <form class="tarjeta formulario" (ngSubmit)="aplicar()">
           <div class="segmentado" role="group" aria-label="Movimiento">
             <button type="button" [attr.aria-pressed]="modo() === 'apartar'" (click)="modo.set('apartar')">Apartar</button>
@@ -52,6 +74,7 @@ type Modo = 'apartar' | 'devolver';
             {{ modo() === 'apartar' ? 'Apartar' : 'Devolver' }}
           </button>
         </form>
+        }
 
         <section class="seccion" aria-labelledby="historial-titulo">
           <h2 id="historial-titulo">Historial</h2>
@@ -71,7 +94,25 @@ type Modo = 'apartar' | 'devolver';
           }
         </section>
 
-        <button type="button" class="boton" (click)="archivar()">Archivar objetivo</button>
+        @if (confirmandoEliminar()) {
+          <section class="tarjeta formulario" aria-labelledby="eliminar-titulo">
+            <h2 id="eliminar-titulo">¿Eliminar «{{ o.nombre }}»?</h2>
+            <p class="atenuado">
+              @if (Number(o.apartado) > 0) {
+                Se devuelven <span class="num">{{ o.apartado | monto: 'simple' : o.moneda }}</span> a {{ nombreLibre() }}.
+              } @else {
+                No tiene plata apartada.
+              }
+            </p>
+            @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+            <div class="acciones">
+              <button type="button" class="boton" (click)="confirmandoEliminar.set(false)">Cancelar</button>
+              <button type="button" class="boton boton-primario" [disabled]="guardando()" (click)="eliminar()">Eliminar</button>
+            </div>
+          </section>
+        } @else {
+          <button type="button" class="boton" (click)="pedirEliminar()">Eliminar objetivo</button>
+        }
       } @else if (error()) {
         <p class="error" role="alert">{{ error() }}</p>
       }
@@ -85,6 +126,7 @@ type Modo = 'apartar' | 'devolver';
     .chico { font-size: 13px; }
     .movimiento { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; }
     .nombre { font-weight: 500; }
+    .acciones { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   `,
 })
 export class ObjetivoPagina implements OnInit {
@@ -101,7 +143,14 @@ export class ObjetivoPagina implements OnInit {
   readonly modo = signal<Modo>('apartar');
   readonly error = signal<string | null>(null);
   readonly guardando = signal(false);
+  readonly editando = signal(false);
+  readonly confirmandoEliminar = signal(false);
   montoTexto = '';
+  nombreTexto = '';
+  metaTexto = '';
+  fechaTexto = '';
+
+  protected readonly Number = Number;
 
   readonly objetivo = computed<Objetivo | undefined>(() => this.resumen()?.objetivos.find((o) => o.id === this.id()));
   /** Los objetivos en dólares se apartan desde los dólares; los de pesos, desde los ahorros. */
@@ -166,10 +215,65 @@ export class ObjetivoPagina implements OnInit {
       });
   }
 
-  archivar(): void {
-    this.api.actualizarObjetivo(this.id(), { archivado: true }).subscribe({
+  empezarEdicion(): void {
+    const o = this.objetivo();
+    if (!o) return;
+    this.nombreTexto = o.nombre;
+    // montoDesdeTexto toma el punto como separador de miles: la meta se muestra con coma decimal
+    this.metaTexto = String(Number(o.monto_meta)).replace('.', ',');
+    this.fechaTexto = o.fecha_meta ?? '';
+    this.error.set(null);
+    this.confirmandoEliminar.set(false);
+    this.editando.set(true);
+  }
+
+  cancelarEdicion(): void {
+    this.editando.set(false);
+    this.error.set(null);
+  }
+
+  guardarEdicion(): void {
+    const nombre = this.nombreTexto.trim();
+    if (!nombre) {
+      this.error.set('Ponele un nombre al objetivo.');
+      return;
+    }
+    const meta = montoDesdeTexto(this.metaTexto);
+    if (!meta) {
+      this.error.set('Escribí una meta mayor a cero, con hasta dos decimales.');
+      return;
+    }
+    this.guardando.set(true);
+    this.error.set(null);
+    this.api.actualizarObjetivo(this.id(), { nombre, monto_meta: meta, fecha_meta: this.fechaTexto || null }).subscribe({
+      next: () => {
+        this.guardando.set(false);
+        this.editando.set(false);
+        this.cargar();
+      },
+      error: (error) => {
+        this.guardando.set(false);
+        this.error.set(mensajeDeError(error));
+      },
+    });
+  }
+
+  pedirEliminar(): void {
+    this.error.set(null);
+    this.editando.set(false);
+    this.confirmandoEliminar.set(true);
+  }
+
+  /** El backend devuelve lo apartado a lo libre y borra (o archiva, si tiene historial) el objetivo. */
+  eliminar(): void {
+    this.guardando.set(true);
+    this.error.set(null);
+    this.api.eliminarObjetivo(this.id()).subscribe({
       next: () => this.router.navigateByUrl('/ahorros'),
-      error: (error) => this.error.set(mensajeDeError(error)),
+      error: (error) => {
+        this.guardando.set(false);
+        this.error.set(mensajeDeError(error));
+      },
     });
   }
 

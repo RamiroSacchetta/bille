@@ -222,6 +222,9 @@ def eliminar_movimiento(almacen: Almacen, usuario_id: UUID, movimiento_id: UUID)
 # Objetivos
 # ---------------------------------------------------------------------------
 
+# Distingue "no se mandó la fecha" de "se mandó vacía para borrarla".
+_SIN_CAMBIO = object()
+
 
 def crear_objetivo(
     almacen: Almacen,
@@ -245,9 +248,10 @@ def actualizar_objetivo(
     objetivo_id: UUID,
     nombre: str | None = None,
     monto_meta: Decimal | None = None,
-    fecha_meta: date | None = None,
+    fecha_meta: date | None | object = _SIN_CAMBIO,
     archivado: bool | None = None,
 ) -> Objetivo:
+    """Solo cambia lo que se manda; `fecha_meta=None` borra la fecha."""
     objetivo = almacen.obtener_objetivo(usuario_id, objetivo_id)
     if objetivo is None:
         raise NoEncontrado("El objetivo no existe")
@@ -257,7 +261,7 @@ def actualizar_objetivo(
         objetivo.nombre = nombre.strip()
     if monto_meta is not None:
         objetivo.monto_meta = reglas.normalizar_monto(monto_meta)
-    if fecha_meta is not None:
+    if fecha_meta is not _SIN_CAMBIO:
         objetivo.fecha_meta = fecha_meta
     if archivado is not None:
         if archivado and almacen.saldos(usuario_id).apartado(objetivo_id) != 0:
@@ -267,12 +271,32 @@ def actualizar_objetivo(
     return almacen.guardar_objetivo(objetivo)
 
 
-def eliminar_objetivo(almacen: Almacen, usuario_id: UUID, objetivo_id: UUID) -> None:
-    if almacen.obtener_objetivo(usuario_id, objetivo_id) is None:
+def eliminar_objetivo(almacen: Almacen, usuario_id: UUID, objetivo_id: UUID, ocurrido_en: datetime) -> None:
+    """Devuelve lo apartado a lo libre (ahorros o dólares) y borra el objetivo.
+
+    Si tiene movimientos se archiva en lugar de borrarse, para no perder el historial.
+    """
+    almacen.bloquear_usuario(usuario_id)
+    objetivo = almacen.obtener_objetivo(usuario_id, objetivo_id)
+    if objetivo is None:
         raise NoEncontrado("El objetivo no existe")
+    apartado = almacen.saldos(usuario_id).apartado(objetivo_id)
+    if apartado > 0:
+        bolsillo = Bolsillo.DOLARES if objetivo.moneda is Moneda.USD else Bolsillo.AHORROS
+        transferir(
+            almacen,
+            usuario_id,
+            apartado,
+            ocurrido_en,
+            Ubicacion(bolsillo, objetivo_id),
+            Ubicacion(bolsillo),
+            descripcion=f"Objetivo eliminado: {objetivo.nombre}",
+        )
     if almacen.objetivo_tiene_movimientos(usuario_id, objetivo_id):
-        raise DatosInvalidos("El objetivo tiene movimientos; archivalo en lugar de borrarlo")
-    almacen.eliminar_objetivo(usuario_id, objetivo_id)
+        objetivo.archivado = True
+        almacen.guardar_objetivo(objetivo)
+    else:
+        almacen.eliminar_objetivo(usuario_id, objetivo_id)
 
 
 # ---------------------------------------------------------------------------
