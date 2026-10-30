@@ -55,3 +55,29 @@ def test_rechaza_un_token_sin_firma():
 
     with pytest.raises(TokenInvalido):
         usuario_del_token(token)
+
+
+def _token_con_secreto(usuario, **datos):
+    return jwt.encode({**_datos(usuario), **datos}, configuracion().supabase_jwt_secret, algorithm="HS256")
+
+
+def test_acepta_un_token_emitido_unos_segundos_en_el_futuro():
+    # El reloj de Supabase puede ir un poco adelantado respecto del de la API
+    usuario = uuid4()
+    token = _token_con_secreto(usuario, iat=datetime.now(UTC) + timedelta(seconds=5))
+
+    assert usuario_del_token(token) == usuario
+
+
+def test_rechaza_un_token_emitido_bastante_en_el_futuro():
+    token = _token_con_secreto(uuid4(), iat=datetime.now(UTC) + timedelta(minutes=5))
+
+    with pytest.raises(TokenInvalido):
+        usuario_del_token(token)
+
+
+def test_rechaza_un_token_vencido_hace_mas_de_la_tolerancia():
+    token = _token_con_secreto(uuid4(), exp=datetime.now(UTC) - timedelta(minutes=2))
+
+    with pytest.raises(TokenInvalido):
+        usuario_del_token(token)

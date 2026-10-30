@@ -12,6 +12,9 @@ import jwt
 from app.config import configuracion
 
 ALGORITMOS_PERMITIDOS = {"HS256", "ES256", "RS256"}
+# El reloj de Supabase y el de la API no están sincronizados al milisegundo: sin tolerancia,
+# un token recién emitido puede rechazarse por traer un `iat` apenas en el futuro.
+TOLERANCIA_RELOJ_SEGUNDOS = 30
 
 
 class TokenInvalido(Exception):
@@ -39,6 +42,7 @@ def usuario_del_token(token: str) -> UUID:
             algorithms=[algoritmo],
             audience="authenticated",
             options={"require": ["exp", "sub"]},
+            leeway=TOLERANCIA_RELOJ_SEGUNDOS,
         )
         return UUID(datos["sub"])
     except (jwt.PyJWTError, ValueError, KeyError) as error:
