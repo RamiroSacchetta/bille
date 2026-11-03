@@ -27,3 +27,6 @@ backups/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Credenciales del usuario de prueba local
+supabase/usuario-prueba-local.md

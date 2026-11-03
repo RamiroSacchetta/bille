@@ -8,6 +8,8 @@
         "run",
         "--directory",
         "backend",
+        "python",
+        "-m",
         "uvicorn",
         "app.main:app",
         "--host",
@@ -15,7 +17,8 @@
         "--port",
         "8000"
       ],
-      "port": 8000
+      "port": 8000,
+      "autoPort": false
     },
     {
       "name": "frontend",
