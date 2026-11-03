@@ -117,6 +117,22 @@ export function montoDesdeTexto(texto: string): string | null {
   return limpio;
 }
 
+/**
+ * Da formato es-AR a un monto mientras se escribe: "1250000,5" → "1.250.000,5".
+ * Los puntos son solo separadores de miles (se recalculan siempre); la primera coma
+ * marca los centavos, con dos dígitos como máximo. Lo que no es dígito ni coma se descarta.
+ */
+export function formatearEntradaMonto(texto: string): string {
+  const limpio = texto.replace(/[^\d,]/g, '');
+  const coma = limpio.indexOf(',');
+  const tieneCentavos = coma >= 0;
+  const entero = (tieneCentavos ? limpio.slice(0, coma) : limpio).replace(/^0+(?=\d)/, '');
+  const centavos = tieneCentavos ? limpio.slice(coma + 1).replace(/,/g, '').slice(0, 2) : '';
+  if (!entero && !tieneCentavos) return '';
+  const agrupado = (entero || '0').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return tieneCentavos ? `${agrupado},${centavos}` : agrupado;
+}
+
 /** Fecha local "2026-10-28" a ISO con la hora actual, para `ocurrido_en`. */
 export function fechaParaApi(fechaLocal: string): string {
   const ahora = new Date();

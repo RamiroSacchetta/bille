@@ -3,6 +3,7 @@ import {
   codigoMoneda,
   fijarMonedaPrincipal,
   formatearConSigno,
+  formatearEntradaMonto,
   formatearMonto,
   montoDesdeTexto,
   moverMes,
@@ -66,6 +67,34 @@ describe('formato', () => {
     expect(montoDesdeTexto('0')).toBeNull();
     expect(montoDesdeTexto('12,345')).toBeNull();
     expect(montoDesdeTexto('abc')).toBeNull();
+  });
+
+  it('separa los miles con punto mientras se escribe el monto', () => {
+    expect(formatearEntradaMonto('999')).toBe('999');
+    expect(formatearEntradaMonto('1000')).toBe('1.000');
+    expect(formatearEntradaMonto('1250000')).toBe('1.250.000');
+    // Al seguir escribiendo sobre un monto ya formateado se reagrupan los puntos
+    expect(formatearEntradaMonto('1.0000')).toBe('10.000');
+  });
+
+  it('usa la coma para los centavos, con dos como máximo', () => {
+    expect(formatearEntradaMonto('1250,5')).toBe('1.250,5');
+    expect(formatearEntradaMonto('1250,567')).toBe('1.250,56');
+    expect(formatearEntradaMonto('1250,')).toBe('1.250,');
+    expect(formatearEntradaMonto(',5')).toBe('0,5');
+    expect(formatearEntradaMonto('12,3,4')).toBe('12,34');
+  });
+
+  it('descarta lo que no es un número y los ceros de adelante', () => {
+    expect(formatearEntradaMonto('')).toBe('');
+    expect(formatearEntradaMonto('$ 12a3')).toBe('123');
+    expect(formatearEntradaMonto('0012')).toBe('12');
+    expect(formatearEntradaMonto('0')).toBe('0');
+  });
+
+  it('lo formateado se sigue interpretando igual', () => {
+    expect(montoDesdeTexto(formatearEntradaMonto('1250000,5'))).toBe('1250000.5');
+    expect(montoDesdeTexto(formatearEntradaMonto('38420'))).toBe('38420');
   });
 
   it('mueve meses cruzando el año', () => {
