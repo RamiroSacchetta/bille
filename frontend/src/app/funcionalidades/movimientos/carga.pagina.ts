@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } 
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 
+import { EntradaMontoDirective } from '../../compartido/entrada-monto.directive';
 import { MontoPipe } from '../../compartido/monto.pipe';
 import { ApiServicio } from '../../nucleo/api.servicio';
 import { CatalogoStore } from '../../nucleo/catalogo.store';
@@ -18,7 +19,7 @@ type OperacionDolares = 'compra' | 'venta' | 'tenia';
 /** Carga rápida de un gasto, un ingreso o un movimiento de dólares, con opción de dividir el pago. */
 @Component({
   selector: 'bi-carga',
-  imports: [FormsModule, RouterLink, MontoPipe],
+  imports: [FormsModule, EntradaMontoDirective, RouterLink, MontoPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <main class="pantalla">
@@ -49,14 +50,14 @@ type OperacionDolares = 'compra' | 'venta' | 'tenia';
 
         <label class="monto">
           <span class="atenuado">{{ etiquetaMonto() }}</span>
-          <input id="carga-monto" name="monto" inputmode="decimal" autocomplete="off" placeholder="0"
+          <input id="carga-monto" name="monto" inputmode="decimal" biMonto autocomplete="off" placeholder="0"
             [ngModel]="montoTexto()" (ngModelChange)="montoTexto.set($event)" [class]="tipo()" />
         </label>
 
         @if (tipo() === 'dolares') {
           @if (operacion() !== 'tenia') {
             <label class="campo">{{ operacion() === 'compra' ? 'Pagaste' : 'Te dieron' }} · {{ codigoMoneda('ARS') }}
-              <input id="carga-pesos" name="pesos" inputmode="decimal" autocomplete="off" placeholder="0" class="num"
+              <input id="carga-pesos" name="pesos" inputmode="decimal" biMonto autocomplete="off" placeholder="0" class="num"
                 [ngModel]="pesosTexto()" (ngModelChange)="pesosTexto.set($event)" />
             </label>
             @if (precio(); as p) {
@@ -155,7 +156,7 @@ type OperacionDolares = 'compra' | 'venta' | 'tenia';
                       <span>{{ origen.nombre }}</span>
                       <span class="atenuado chico">Tenés <span class="num">{{ origen.saldo | monto: 'simple' : monedaGasto() }}</span></span>
                     </label>
-                    <input [id]="'origen-' + origen.clave" [name]="'origen-' + origen.clave" inputmode="decimal" placeholder="0"
+                    <input [id]="'origen-' + origen.clave" [name]="'origen-' + origen.clave" inputmode="decimal" biMonto placeholder="0"
                       class="num" [ngModel]="textoOrigen(origen.clave)" (ngModelChange)="cambiarOrigen(origen.clave, $event)" />
                   </li>
                 }
@@ -177,13 +178,25 @@ type OperacionDolares = 'compra' | 'venta' | 'tenia';
     </main>
   `,
   styles: `
-    .espacio { width: 44px; }
-    .formulario { display: flex; flex-direction: column; gap: 18px; }
-    .monto { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 13px; }
-    .monto input {
-      width: 100%; border: 0; background: transparent; text-align: center;
-      font-family: var(--fuente-numeros); font-size: 44px; letter-spacing: -0.02em;
+    .espacio { width: 44px; flex: none; }
+    .encabezado .segmentado { flex: 1; max-width: 360px; }
+    .formulario { display: flex; flex-direction: column; gap: 14px; }
+    .monto {
+      display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 14px 12px;
+      background: var(--superficie); border: 1px solid var(--linea); border-radius: var(--radio);
+      font-size: 14px; font-weight: 500; color: var(--atenuado);
     }
+    .monto input {
+      width: 100%; border: 0; background: transparent; text-align: center; color: var(--tinta);
+      font-family: var(--fuente); font-size: 40px; font-weight: 800; line-height: 1.15; letter-spacing: var(--tracking);
+      font-variant-numeric: tabular-nums;
+    }
+    .monto input::placeholder { color: var(--plata); }
+    .monto input:focus-visible { outline: none; }
+    .monto:focus-within { border-color: var(--marino); }
+    /* La tarjeta del monto toma el tinte del tipo: rojo si sale, verde si entra */
+    .monto:has(input.gasto) { background: var(--gasto-fondo); border-color: #fecaca; }
+    .monto:has(input.ingreso) { background: var(--ingreso-fondo); border-color: #a7f3d0; }
     .monto input.gasto { color: var(--gasto); }
     .monto input.ingreso { color: var(--ingreso); }
     .monto input.dolares { color: var(--tinta); }
@@ -193,11 +206,11 @@ type OperacionDolares = 'compra' | 'venta' | 'tenia';
     .sale-de { justify-content: space-between; width: 100%; }
     .division li { display: flex; align-items: center; gap: 12px; padding: 10px 0; }
     .division label { flex: 1; display: flex; flex-direction: column; gap: 2px; }
-    .division input { width: 120px; min-height: 44px; border: 1px solid var(--linea); border-radius: 12px; padding: 0 10px; text-align: right; font-size: 15px; }
+    .division input { width: 120px; min-height: 44px; border: 1px solid var(--linea); border-radius: var(--radio); background: var(--blanco); color: var(--tinta); padding: 0 12px; text-align: right; font: inherit; font-size: 15px; }
     .chico { font-size: 12px; }
-    .estado { margin: 0; text-align: center; font-weight: 600; color: var(--gasto); }
+    .estado { margin: 0; text-align: center; font-weight: 600; color: var(--peligro); }
     .estado.cuadra { color: var(--ingreso); }
-    .otra input { width: 84px; min-height: 44px; border: 1px solid var(--linea); border-radius: 22px; padding: 0 12px; font: inherit; font-size: 14px; }
+    .otra input { width: 84px; min-height: 40px; border: 1px solid var(--linea); border-radius: var(--radio); background: var(--blanco); color: var(--tinta); padding: 0 12px; font: inherit; font-size: 15px; }
     .aviso { margin: 0; }
   `,
 })

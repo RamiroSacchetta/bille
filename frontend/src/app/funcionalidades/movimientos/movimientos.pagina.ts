@@ -48,7 +48,7 @@ interface Dia {
         <section class="seccion dia">
           <div class="cabecera-dia">
             <span>{{ dia.nombre }}</span>
-            <span class="num">{{ dia.neto | monto: 'signo' }}</span>
+            <span class="num" [class.ingreso]="+dia.neto > 0" [class.gasto]="+dia.neto < 0">{{ dia.neto | monto: 'signo' }}</span>
           </div>
           <ul class="lista">
             @for (m of dia.movimientos; track m.id) {
@@ -78,10 +78,9 @@ interface Dia {
     <bi-navegacion />
   `,
   styles: `
-    .selector-mes { display: flex; align-items: center; justify-content: space-between; padding: 6px; font-weight: 600; }
-    .selector-mes .boton { border: 0; }
-    .dia { gap: 6px; }
-    .cabecera-dia { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; color: var(--atenuado); padding: 0 4px; }
+    .selector-mes { display: flex; align-items: center; justify-content: space-between; padding: 6px; border-radius: var(--radio); font-weight: 600; text-transform: capitalize; }
+    .dia { gap: 8px; }
+    .cabecera-dia { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; color: var(--atenuado); padding: 0 8px; text-transform: capitalize; }
     .confirmar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 0 0 12px; font-size: 14px; }
     .confirmar span { flex: 1; min-width: 160px; }
   `,

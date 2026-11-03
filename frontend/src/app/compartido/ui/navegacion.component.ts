@@ -30,25 +30,28 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
     </nav>
   `,
   styles: `
+    /* Barra inferior blanca con divisor fino */
     nav {
       position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
-      display: flex; justify-content: space-around; align-items: flex-start;
-      background: var(--superficie); border-top: 1px solid var(--linea);
-      padding: 10px max(8px, env(safe-area-inset-right, 0px)) calc(12px + env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px));
+      display: flex; justify-content: space-around; align-items: center;
+      background: var(--blanco); border-top: 1px solid var(--linea);
+      padding: 6px max(8px, env(safe-area-inset-right, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px));
     }
     a {
-      display: flex; flex-direction: column; align-items: center; gap: 4px;
-      min-width: 56px; min-height: 44px; font-size: 11px; font-weight: 500;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+      min-width: 56px; min-height: 44px; font-size: 11px; font-weight: 600;
       color: var(--atenuado); text-decoration: none;
     }
-    a.activo { color: var(--tinta); }
-    svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    a:hover { color: var(--tinta); }
+    /* La sección activa va en el marino de marca */
+    a.activo { color: var(--marino); }
+    svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
     .cargar {
-      width: 56px; height: 56px; border-radius: 28px; margin-top: -24px; justify-content: center;
-      background: var(--bosque); color: var(--lima);
+      width: 46px; height: 46px; min-width: 46px; border-radius: var(--radio);
+      background: var(--marino); color: var(--blanco);
     }
-    .cargar:hover { color: var(--lima); }
-    .cargar svg { width: 26px; height: 26px; stroke-width: 2.4; }
+    .cargar:hover { background: var(--marino-hover); color: var(--blanco); }
+    .cargar svg { width: 24px; height: 24px; stroke-width: 2.4; }
   `,
 })
 export class NavegacionComponent {}

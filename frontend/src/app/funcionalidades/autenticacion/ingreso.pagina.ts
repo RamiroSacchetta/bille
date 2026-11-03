@@ -15,8 +15,8 @@ import { errorDeRetorno } from './retorno-google';
   template: `
     <main class="ingreso">
       <div class="marca">
-        <span class="logo" aria-hidden="true">B</span>
-        <h1>Tu plata,<br />clara y simple.</h1>
+        <span class="marca-logo"><span class="logo" aria-hidden="true">B</span> Bille</span>
+        <h1 class="lema">Tu plata, clara y simple.</h1>
         <p>Registrá efectivo, ingresos y objetivos de ahorro en un solo lugar.</p>
         <bi-boton-instalar [sobreOscuro]="true" />
       </div>
@@ -59,17 +59,24 @@ import { errorDeRetorno } from './retorno-google';
     </main>
   `,
   styles: `
-    .ingreso { min-height: 100%; display: flex; flex-direction: column; background: var(--bosque); color: var(--sobre-bosque); }
-    .marca { flex: 1; padding: 64px 28px 32px; display: flex; flex-direction: column; gap: 18px; max-width: 560px; width: 100%; margin: 0 auto; }
-    .logo { width: 56px; height: 56px; border-radius: 18px; background: var(--lima); color: var(--bosque); display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 700; }
-    h1 { font-size: 40px; letter-spacing: -0.02em; line-height: 1.05; }
-    .marca p { margin: 0; font-size: 16px; color: var(--sobre-bosque-suave); line-height: 1.5; }
-    form { background: var(--fondo); color: var(--tinta); border-radius: 28px 28px 0 0; padding: 28px 24px 36px; display: flex; flex-direction: column; gap: 14px; width: 100%; max-width: 560px; margin: 0 auto; }
+    /* Se fija el color: la clase "ingreso" también es la utilidad global de montos que entran */
+    .ingreso { min-height: 100%; display: flex; flex-direction: column; color: var(--tinta); }
+    .marca { flex: 1; padding: 32px 20px 24px; display: flex; flex-direction: column; justify-content: center; gap: 14px; max-width: 560px; width: 100%; margin: 0 auto; }
+    .marca-logo { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 700; letter-spacing: var(--tracking); }
+    .logo { width: 36px; height: 36px; border-radius: var(--radio); background: var(--marino); color: var(--blanco); display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 800; }
+    /* Titular protagonista: pesado, en marino, directo sobre blanco */
+    .lema { font-size: clamp(32px, 9vw, 56px); line-height: 1.08; }
+    .marca p { margin: 0; font-size: 16px; line-height: 1.63; color: var(--grafito); }
+    form {
+      background: var(--superficie); border: 1px solid var(--linea); border-radius: var(--radio);
+      box-shadow: var(--sombra); padding: 20px 16px 24px;
+      display: flex; flex-direction: column; gap: 14px; width: calc(100% - 32px); max-width: 528px; margin: 0 auto 24px;
+    }
     .ayuda { margin: -6px 0 0; font-size: 13px; color: var(--atenuado); }
     .separador { margin: 0; text-align: center; font-size: 13px; color: var(--atenuado); }
-    .boton-google { background: var(--fondo); color: var(--tinta); border: 1px solid var(--linea); }
     .alternar { margin: 0; text-align: center; font-size: 14px; color: var(--atenuado); }
-    .alternar button { min-height: 44px; border: 0; background: none; font: inherit; font-weight: 600; color: var(--tinta); text-decoration: underline; cursor: pointer; }
+    .alternar button { min-height: 44px; border: 0; background: none; font: inherit; font-weight: 600; color: var(--acento); cursor: pointer; }
+    .alternar button:hover { text-decoration: underline; }
   `,
 })
 export class IngresoPagina {

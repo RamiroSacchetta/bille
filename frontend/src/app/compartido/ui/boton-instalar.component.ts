@@ -25,7 +25,7 @@ import { InstalacionServicio } from '../../nucleo/instalacion';
     :host { display: block; }
     :host:empty { display: none; }
     .pasos { margin: 8px 0 0; font-size: 14px; line-height: 1.4; }
-    .sobre-oscuro { background: var(--lima); color: var(--bosque); border-color: var(--lima); }
+    .sobre-oscuro { background: var(--marino); border-color: var(--marino); color: var(--blanco); }
   `,
 })
 export class BotonInstalarComponent {

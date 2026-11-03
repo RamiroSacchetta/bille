@@ -2,10 +2,11 @@ import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, si
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 
+import { EntradaMontoDirective } from '../../compartido/entrada-monto.directive';
 import { MontoPipe } from '../../compartido/monto.pipe';
 import { BarraProgresoComponent } from '../../compartido/ui/barra-progreso.component';
 import { ApiServicio, mensajeDeError } from '../../nucleo/api.servicio';
-import { claveMes, codigoMoneda, fechaParaApi, hoyLocal, montoDesdeTexto, nombreDia } from '../../nucleo/formato';
+import { claveMes, codigoMoneda, fechaParaApi, formatearEntradaMonto, hoyLocal, montoDesdeTexto, nombreDia } from '../../nucleo/formato';
 import { Movimiento, Objetivo, Resumen } from '../../nucleo/modelos';
 
 type Modo = 'apartar' | 'devolver';
@@ -13,7 +14,7 @@ type Modo = 'apartar' | 'devolver';
 /** Detalle de un objetivo: lo apartado, apartar desde el ahorro libre o devolver, su historial, editarlo y eliminarlo. */
 @Component({
   selector: 'bi-objetivo',
-  imports: [FormsModule, RouterLink, MontoPipe, BarraProgresoComponent],
+  imports: [FormsModule, EntradaMontoDirective, RouterLink, MontoPipe, BarraProgresoComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <main class="pantalla">
@@ -43,7 +44,7 @@ type Modo = 'apartar' | 'devolver';
               <input id="editar-nombre" name="nombre" maxlength="80" [(ngModel)]="nombreTexto" />
             </label>
             <label class="campo">Meta · {{ codigoMoneda(o.moneda) }}
-              <input id="editar-meta" name="meta" inputmode="decimal" class="num" [(ngModel)]="metaTexto" />
+              <input id="editar-meta" name="meta" inputmode="decimal" biMonto class="num" [(ngModel)]="metaTexto" />
             </label>
             <label class="campo">Fecha meta (opcional)
               <input id="editar-fecha" name="fecha" type="date" [(ngModel)]="fechaTexto" />
@@ -67,7 +68,7 @@ type Modo = 'apartar' | 'devolver';
             @else { Vuelve a {{ nombreLibre() }}. Apartado: <span class="num">{{ o.apartado | monto: 'simple' : o.moneda }}</span> }
           </span>
           <label class="campo">Monto · {{ codigoMoneda(o.moneda) }}
-            <input id="objetivo-monto" name="monto" inputmode="decimal" placeholder="0" class="num" [(ngModel)]="montoTexto" />
+            <input id="objetivo-monto" name="monto" inputmode="decimal" biMonto placeholder="0" class="num" [(ngModel)]="montoTexto" />
           </label>
           @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
           <button type="submit" class="boton boton-primario" [disabled]="guardando()">
@@ -83,7 +84,7 @@ type Modo = 'apartar' | 'devolver';
               @for (h of historial(); track h.id) {
                 <li class="movimiento">
                   <span class="pila"><span class="nombre">{{ h.titulo }}</span><span class="atenuado chico">{{ h.detalle }}</span></span>
-                  <span class="num" [class.ingreso]="h.monto > 0" [class.gasto]="h.monto < 0">{{ h.monto | monto: 'signo' : o.moneda }}</span>
+                  <span class="num ahorro monto-ahorro">{{ h.monto | monto: 'signo' : o.moneda }}</span>
                 </li>
               }
             </ul>
@@ -107,11 +108,11 @@ type Modo = 'apartar' | 'devolver';
             @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
             <div class="acciones">
               <button type="button" class="boton" (click)="confirmandoEliminar.set(false)">Cancelar</button>
-              <button type="button" class="boton boton-primario" [disabled]="guardando()" (click)="eliminar()">Eliminar</button>
+              <button type="button" class="boton boton-destructivo" [disabled]="guardando()" (click)="eliminar()">Eliminar</button>
             </div>
           </section>
         } @else {
-          <button type="button" class="boton" (click)="pedirEliminar()">Eliminar objetivo</button>
+          <button type="button" class="boton boton-peligro" (click)="pedirEliminar()">Eliminar objetivo</button>
         }
       } @else if (error()) {
         <p class="error" role="alert">{{ error() }}</p>
@@ -119,7 +120,9 @@ type Modo = 'apartar' | 'devolver';
     </main>
   `,
   styles: `
-    .titulo { font-size: 20px; flex: 1; }
+    .titulo { flex: 1; }
+    .destacado .monto-grande { color: var(--ahorro); }
+    .monto-ahorro { font-weight: 600; white-space: nowrap; }
     .datos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
     .datos div, .pila { display: flex; flex-direction: column; gap: 2px; }
     .formulario { display: flex; flex-direction: column; gap: 12px; }
@@ -222,7 +225,7 @@ export class ObjetivoPagina implements OnInit {
     if (!o) return;
     this.nombreTexto = o.nombre;
     // montoDesdeTexto toma el punto como separador de miles: la meta se muestra con coma decimal
-    this.metaTexto = String(Number(o.monto_meta)).replace('.', ',');
+    this.metaTexto = formatearEntradaMonto(String(Number(o.monto_meta)).replace('.', ','));
     this.fechaTexto = o.fecha_meta ?? '';
     this.error.set(null);
     this.confirmandoEliminar.set(false);

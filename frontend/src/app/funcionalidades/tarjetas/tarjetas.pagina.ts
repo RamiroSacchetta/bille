@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } 
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 
+import { EntradaMontoDirective } from '../../compartido/entrada-monto.directive';
 import { MontoPipe } from '../../compartido/monto.pipe';
 import { NavegacionComponent } from '../../compartido/ui/navegacion.component';
 import { ApiServicio, mensajeDeError } from '../../nucleo/api.servicio';
@@ -16,7 +17,7 @@ import { cuotaActual, mesCorto } from './cuotas';
  */
 @Component({
   selector: 'bi-tarjetas',
-  imports: [FormsModule, RouterLink, MontoPipe, NavegacionComponent],
+  imports: [FormsModule, EntradaMontoDirective, RouterLink, MontoPipe, NavegacionComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <main class="pantalla">
@@ -58,7 +59,7 @@ import { cuotaActual, mesCorto } from './cuotas';
           <div class="pila">
             <span class="etiqueta">{{ t.nombre }} · debés aprox.</span>
             <span class="num monto-grande">{{ t.deuda_estimada | monto }}</span>
-            <span class="etiqueta">Estimado con lo que anotaste. El dato real es lo que pagás.</span>
+            <span class="nota">Estimado con lo que anotaste. El dato real es lo que pagás.</span>
           </div>
           <div class="resumenes">
             <div class="bloque">
@@ -83,10 +84,10 @@ import { cuotaActual, mesCorto } from './cuotas';
           <h2>Pagar resumen</h2>
           <p class="atenuado chico">Cargá lo que pagaste de verdad. Ese pago es el gasto del mes y baja la deuda; si pagás menos, el resto queda pendiente.</p>
           <label class="campo">De la plata del mes
-            <input id="pago-mes" name="pagoMes" inputmode="decimal" class="num" placeholder="0" [(ngModel)]="pagoMes" />
+            <input id="pago-mes" name="pagoMes" inputmode="decimal" biMonto class="num" placeholder="0" [(ngModel)]="pagoMes" />
           </label>
           <label class="campo">De ahorros (ahorro libre: {{ resumen()?.saldos?.ahorro_libre | monto }})
-            <input id="pago-ahorros" name="pagoAhorros" inputmode="decimal" class="num" placeholder="0" [(ngModel)]="pagoAhorros" />
+            <input id="pago-ahorros" name="pagoAhorros" inputmode="decimal" biMonto class="num" placeholder="0" [(ngModel)]="pagoAhorros" />
           </label>
           <button type="submit" class="boton boton-primario" [disabled]="guardando()">Registrar pago</button>
           @if (aviso()) { <p class="ingreso chico" role="status">{{ aviso() }}</p> }
@@ -106,7 +107,7 @@ import { cuotaActual, mesCorto } from './cuotas';
                       } @else { 1 pago · {{ c.comprado_en }} }
                     </span>
                   </span>
-                  <span class="num">{{ c.monto_total | monto }}</span>
+                  <span class="num gasto monto-compra">−{{ c.monto_total | monto }}</span>
                   <button type="button" class="boton boton-icono" (click)="eliminarCompra(c)" [attr.aria-label]="'Eliminar compra ' + (c.descripcion || '')">✕</button>
                 </li>
               }
@@ -125,7 +126,7 @@ import { cuotaActual, mesCorto } from './cuotas';
         <p class="vacio">Agregá tu tarjeta de crédito para anotar compras en cuotas y saber cuánto debés.</p>
       }
 
-      <a routerLink="/" class="atenuado">‹ Volver al inicio</a>
+      <a routerLink="/" class="atenuado volver">‹ Volver al inicio</a>
     </main>
     <bi-navegacion />
   `,
@@ -134,12 +135,19 @@ import { cuotaActual, mesCorto } from './cuotas';
     .dos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
     .pila { display: flex; flex-direction: column; gap: 4px; }
     .resumenes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-    .bloque { background: var(--bosque-2); border-radius: 16px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
-    .proximos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
-    .proximos li { display: flex; justify-content: space-between; color: var(--sobre-bosque-suave); }
-    .compra { display: flex; align-items: center; gap: 10px; padding: 10px 0; }
+    .bloque { background: var(--nube); border-radius: var(--radio); padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; font-size: var(--t-cifra); font-weight: 700; color: var(--gasto); }
+    .bloque .etiqueta { font-size: 13px; font-weight: 500; }
+    .proximos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; font-size: 15px; }
+    .proximos li { display: flex; justify-content: space-between; padding: 8px 0; color: var(--grafito); border-top: 1px solid var(--linea); }
+    /* Cuotas por venir: plata que va a salir */
+    .proximos .num { color: var(--gasto); font-weight: 600; }
+    /* Lo que se debe de la tarjeta es un gasto comprometido */
+    .destacado .monto-grande { color: var(--gasto); }
+    .compra { display: flex; align-items: center; gap: 10px; padding: 12px 0; }
     .compra .pila { flex: 1; min-width: 0; }
-    .nombre { font-weight: 500; }
+    .nombre { font-weight: 600; }
+    .monto-compra { font-weight: 600; white-space: nowrap; }
+    .volver { min-height: var(--toque); display: inline-flex; align-items: center; align-self: flex-start; }
     .chico { font-size: 13px; margin: 0; }
   `,
 })

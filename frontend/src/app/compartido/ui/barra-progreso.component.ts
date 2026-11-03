@@ -11,10 +11,10 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
     </span>
   `,
   styles: `
-    .pista { display: block; height: 8px; border-radius: 4px; background: var(--linea); overflow: hidden; }
-    .pista.oscura { height: 12px; border-radius: 6px; background: var(--bosque-3); }
-    .relleno { display: block; height: 100%; border-radius: inherit; background: var(--bosque); }
-    .oscura .relleno { background: var(--lima); }
+    .pista { display: block; height: 8px; border-radius: 4px; background: var(--escarcha); overflow: hidden; }
+    .pista.oscura { height: 10px; border-radius: 5px; }
+    /* Lo apartado para una meta es ahorro: violeta, distinto del verde de ingreso */
+    .relleno { display: block; height: 100%; border-radius: inherit; background: var(--ahorro); }
   `,
 })
 export class BarraProgresoComponent {

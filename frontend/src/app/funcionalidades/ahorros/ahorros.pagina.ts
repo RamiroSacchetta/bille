@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { Observable } from 'rxjs';
 
+import { EntradaMontoDirective } from '../../compartido/entrada-monto.directive';
 import { MontoPipe } from '../../compartido/monto.pipe';
 import { BarraProgresoComponent } from '../../compartido/ui/barra-progreso.component';
 import { NavegacionComponent } from '../../compartido/ui/navegacion.component';
@@ -22,7 +23,7 @@ interface MovimientoAhorro {
 /** Ahorros: el total ahorrado, cómo se reparte entre ahorro libre y objetivos, y sus movimientos. */
 @Component({
   selector: 'bi-ahorros',
-  imports: [FormsModule, RouterLink, MontoPipe, BarraProgresoComponent, NavegacionComponent],
+  imports: [FormsModule, EntradaMontoDirective, RouterLink, MontoPipe, BarraProgresoComponent, NavegacionComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <main class="pantalla">
@@ -87,7 +88,7 @@ interface MovimientoAhorro {
             </label>
           }
           <label class="campo">{{ accion() === 'objetivo' ? 'Meta · ' + codigoMoneda(monedaObjetivo()) : 'Monto' }}
-            <input id="ahorros-monto" name="monto" inputmode="decimal" placeholder="0" class="num" [(ngModel)]="montoTexto" />
+            <input id="ahorros-monto" name="monto" inputmode="decimal" biMonto placeholder="0" class="num" [(ngModel)]="montoTexto" />
           </label>
           @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
           <div class="acciones">
@@ -123,7 +124,7 @@ interface MovimientoAhorro {
             @for (m of movimientosAhorro(); track m.id) {
               <li class="movimiento">
                 <span class="pila"><span class="titulo">{{ m.titulo }}</span><span class="atenuado chico">{{ m.detalle }}</span></span>
-                <span class="num" [class.ingreso]="m.monto > 0" [class.gasto]="m.monto < 0">{{ m.monto | monto: 'signo' }}</span>
+                <span class="num ahorro monto-ahorro">{{ m.monto | monto: 'signo' }}</span>
               </li>
             }
           </ul>
@@ -138,10 +139,11 @@ interface MovimientoAhorro {
   `,
   styles: `
     .pila { display: flex; flex-direction: column; gap: 4px; }
-    .reparto { display: flex; gap: 2px; height: 12px; border-radius: 6px; overflow: hidden; }
-    .leyenda { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
-    .leyenda li { display: flex; align-items: center; gap: 8px; }
-    .punto { width: 10px; height: 10px; border-radius: 5px; }
+    .reparto { display: flex; gap: 2px; height: 10px; border-radius: 5px; overflow: hidden; background: var(--escarcha); }
+    .leyenda { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; font-size: 14px; }
+    .leyenda li { display: flex; align-items: center; gap: 8px; color: var(--atenuado); }
+    .leyenda .num { color: var(--tinta); }
+    .punto { width: 10px; height: 10px; border-radius: 50%; }
     .leyenda .nombre { flex: 1; }
     .acciones { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
     .formulario { display: flex; flex-direction: column; gap: 12px; }
@@ -153,7 +155,10 @@ interface MovimientoAhorro {
     .titulo { font-weight: 500; }
     .dolares { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
     .derecha { align-items: flex-end; }
-    .total-dolares { font-size: 20px; font-weight: 600; }
+    /* El total ahorrado va en el color del ahorro */
+    .destacado .monto-grande { color: var(--ahorro); }
+    .monto-ahorro { font-weight: 600; white-space: nowrap; }
+    .total-dolares { font-size: 22px; font-weight: 800; color: var(--marino); }
   `,
 })
 export class AhorrosPagina implements OnInit {
@@ -180,9 +185,10 @@ export class AhorrosPagina implements OnInit {
     const r = this.resumen();
     if (!r || Number(r.saldos.ahorros) <= 0) return [];
     const total = Number(r.saldos.ahorros);
-    const colores = ['#F5F5F0', '#6E8A7C', '#9FD3FF', '#FFB98A'];
+    // Escala de violetas (el color del ahorro): libre el más oscuro, objetivos cada vez más claros
+    const colores = ['#8b5cf6', '#a78bfa', '#c4b5fd', '#ddd6fe'];
     const tramos = [
-      { nombre: 'Ahorro libre', monto: Number(r.saldos.ahorro_libre), color: 'var(--lima)' },
+      { nombre: 'Ahorro libre', monto: Number(r.saldos.ahorro_libre), color: 'var(--ahorro)' },
       // Los ahorros son en pesos: los objetivos en dólares no entran en este reparto
       ...r.objetivos.filter((o) => o.moneda === 'ARS').map((o, i) => ({ nombre: o.nombre, monto: Number(o.apartado), color: colores[i % colores.length] })),
     ].filter((t) => t.monto > 0);

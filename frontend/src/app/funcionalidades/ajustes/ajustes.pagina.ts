@@ -93,20 +93,22 @@ const TIPOS_METODO: Record<string, string> = {
   `,
   styles: `
     .perfil { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
-    .avatar { width: 52px; height: 52px; border-radius: 26px; background: var(--lima); color: var(--bosque); display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 700; }
+    .avatar { width: 44px; height: 44px; border-radius: 50%; background: var(--marino); color: var(--blanco); display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 800; }
     .nombre { flex: 1; min-width: 160px; }
-    .categoria { min-height: 40px; padding: 0 4px 0 12px; border-radius: 20px; display: inline-flex; align-items: center; gap: 2px; font-size: 14px; font-weight: 500; }
-    .categoria.gasto { background: var(--gasto-fondo); color: #8a3409; }
-    .categoria.ingreso { background: var(--ingreso-fondo); color: #084c80; }
-    .categoria button { width: 36px; height: 36px; border: 0; background: none; color: inherit; cursor: pointer; border-radius: 18px; }
+    /* Insignias con tinte suave: rojo para categorías de gasto, verde para las de ingreso */
+    .categoria { min-height: 40px; padding: 0 4px 0 12px; border-radius: var(--radio); display: inline-flex; align-items: center; gap: 2px; font-size: 14px; font-weight: 500; }
+    .categoria.gasto { background: var(--gasto-fondo); color: var(--gasto); }
+    .categoria.ingreso { background: var(--ingreso-fondo); color: var(--ingreso); }
+    .categoria button { width: 36px; height: 36px; border: 0; background: none; color: inherit; cursor: pointer; border-radius: 8px; }
+    .categoria button:hover { background: rgba(15, 23, 43, 0.06); }
     .nueva-categoria { display: flex; flex-direction: column; gap: 10px; }
-    .metodo { display: flex; justify-content: space-between; align-items: center; min-height: 52px; gap: 12px; }
-    .metodo input { width: 22px; height: 22px; accent-color: var(--bosque); }
+    .metodo { display: flex; justify-content: space-between; align-items: center; min-height: 48px; gap: 12px; }
+    .metodo input { width: 22px; height: 22px; accent-color: var(--marino); }
     .pila { display: flex; flex-direction: column; gap: 2px; }
     .chico { font-size: 12px; }
     .monedas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .monedas button { text-transform: capitalize; }
-    .enlace { display: flex; justify-content: space-between; align-items: center; min-height: 44px; text-decoration: none; color: var(--tinta); font-weight: 500; }
+    .enlace { display: flex; justify-content: space-between; align-items: center; min-height: 44px; text-decoration: none; color: var(--tinta); font-weight: 600; }
   `,
 })
 export class AjustesPagina implements OnInit {

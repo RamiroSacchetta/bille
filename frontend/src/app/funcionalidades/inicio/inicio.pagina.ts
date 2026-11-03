@@ -60,7 +60,7 @@ import { Movimiento, Resumen } from '../../nucleo/modelos';
             <span class="num monto-grande">{{ r.saldos.disponible | monto }}</span>
             <span class="etiqueta desglose">
               <span>Total <span class="num claro">{{ r.saldos.total | monto }}</span></span>
-              <span>Ahorrado <span class="num lima">{{ r.saldos.ahorros | monto }}</span></span>
+              <span>Ahorrado <span class="num ahorro desglose-ahorro">{{ r.saldos.ahorros | monto }}</span></span>
             </span>
           </div>
           <div class="totales">
@@ -80,7 +80,7 @@ import { Movimiento, Resumen } from '../../nucleo/modelos';
 
         @if (+r.proximo_resumen_tarjetas > 0) {
           <a routerLink="/tarjetas" class="tarjeta deuda">
-            <span>Tarjetas: próximo resumen <span class="num">{{ r.proximo_resumen_tarjetas | monto }}</span></span>
+            <span>Tarjetas: próximo resumen <span class="num gasto">{{ r.proximo_resumen_tarjetas | monto }}</span></span>
             <span aria-hidden="true">›</span>
           </a>
         }
@@ -89,7 +89,7 @@ import { Movimiento, Resumen } from '../../nucleo/modelos';
           <div class="seccion-titulo">
             <div class="pila">
               <h2 id="ahorros-titulo">Ahorros</h2>
-              <span class="atenuado chico">Ahorrado <span class="num">{{ r.saldos.ahorros | monto }}</span> · libre <span class="num">{{ r.saldos.ahorro_libre | monto }}</span></span>
+              <span class="atenuado chico">Ahorrado <span class="num ahorro">{{ r.saldos.ahorros | monto }}</span> · libre <span class="num ahorro">{{ r.saldos.ahorro_libre | monto }}</span></span>
               @if (tieneDolares(r)) {
                 <span class="atenuado chico">Dólares <span class="num">{{ r.saldos.dolares | monto: 'simple' : 'USD' }}</span> · libres <span class="num">{{ r.saldos.dolares_libres | monto: 'simple' : 'USD' }}</span></span>
               }
@@ -135,25 +135,38 @@ import { Movimiento, Resumen } from '../../nucleo/modelos';
   `,
   styles: `
     .saludo, .pila { display: flex; flex-direction: column; gap: 4px; }
-    .mes { display: flex; align-items: center; gap: 4px; font-size: 14px; font-weight: 500; }
-    .desglose { display: flex; flex-wrap: wrap; gap: 12px; }
-    .claro { color: var(--sobre-bosque); }
-    .lima { color: var(--lima); }
-    .totales { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-    .total { background: var(--bosque-2); border-radius: 16px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
-    .ingreso-claro { color: var(--ingreso-claro); }
-    .gasto-claro { color: var(--gasto-claro); }
+    .mes { display: flex; align-items: center; gap: 4px; font-size: 14px; font-weight: 600; text-transform: capitalize; }
+    .desglose { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: var(--t-chico); }
+    .claro { color: var(--tinta); font-weight: 600; }
+    .desglose-ahorro { font-weight: 600; }
+    .totales { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    /* Ingresos y gastos del mes con su tinte: se distinguen de un vistazo */
+    .total { border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; font-size: var(--t-cifra); font-weight: 700; }
+    .total:first-child { background: var(--ingreso-fondo); }
+    .total:last-child { background: var(--gasto-fondo); }
+    .total .etiqueta { color: var(--grafito); }
+    .ingreso-claro { color: var(--ingreso); }
+    .gasto-claro { color: var(--gasto); }
     .chico { font-size: 13px; }
-    .seccion-titulo a { font-size: 14px; font-weight: 500; min-height: 44px; display: flex; align-items: center; }
+    /* Enlaces secundarios: botón de texto con flecha */
+    .seccion-titulo a {
+      font-size: 15px; font-weight: 600; text-decoration: none; color: var(--marino);
+      min-height: 44px; display: flex; align-items: center; gap: 4px;
+    }
+    .seccion-titulo a::after { content: '→'; }
+    .seccion-titulo a:hover { text-decoration: underline; }
     .objetivos { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
     .objetivo { display: flex; flex-direction: column; gap: 10px; text-decoration: none; color: var(--tinta); }
-    .nombre { font-size: 14px; font-weight: 600; }
-    .vacio-enlace { text-align: center; color: var(--atenuado); }
-    .pendientes { display: flex; flex-direction: column; gap: 8px; border-color: var(--gasto-claro); }
+    .objetivo:hover { box-shadow: var(--sombra); color: var(--tinta); }
+    .nombre { font-size: 16px; font-weight: 600; }
+    .vacio-enlace { text-align: center; font-weight: 600; text-decoration: none; }
+    /* Cargas sin enviar: aviso en ámbar, el color de "pendiente" */
+    .pendientes { display: flex; flex-direction: column; gap: 8px; background: var(--pendiente-fondo); border-color: #fcd34d; }
+    .pendientes h2 { color: var(--pendiente); }
     .pendientes .chico { margin: 0; }
     .rechazada { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
     .rechazada .error { flex: 1; min-width: 180px; font-size: 13px; }
-    .deuda { display: flex; justify-content: space-between; align-items: center; min-height: 44px; text-decoration: none; color: var(--tinta); font-size: 14px; font-weight: 500; }
+    .deuda { display: flex; justify-content: space-between; align-items: center; min-height: 44px; text-decoration: none; color: var(--tinta); font-size: var(--t-chico); font-weight: 500; padding-block: 8px; }
   `,
 })
 export class InicioPagina implements OnInit {

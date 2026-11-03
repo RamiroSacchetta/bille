@@ -26,18 +26,23 @@ import { MontoPipe } from '../monto.pipe';
     }
   `,
   styles: `
-    :host { display: flex; align-items: center; gap: 12px; padding: 10px 0; }
+    :host { display: flex; align-items: center; gap: 10px; padding: 8px 0; font-size: 14px; }
     .icono {
-      width: 40px; height: 40px; flex: none; border-radius: var(--radio-icono);
-      display: flex; align-items: center; justify-content: center; font-weight: 600;
+      width: 36px; height: 36px; flex: none; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px; font-weight: 700;
     }
-    .icono.gasto { background: var(--gasto-fondo); }
-    .icono.ingreso { background: var(--ingreso-fondo); }
-    .icono.transferencia, .icono.cambio { background: var(--relleno); }
+    /* Cada tipo lleva su tinte suave y su color: refuerza al signo del monto, no lo reemplaza */
+    .icono.gasto { background: var(--gasto-fondo); color: var(--gasto); }
+    .icono.ingreso { background: var(--ingreso-fondo); color: var(--ingreso); }
+    .icono.transferencia, .icono.cambio { background: var(--neutro-fondo); color: var(--neutro); }
     .texto { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-    .titulo { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .detalle { font-size: 12px; color: var(--atenuado); }
-    .monto.transferencia, .monto.cambio { color: var(--atenuado); }
+    .titulo { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .monto { font-weight: 600; white-space: nowrap; }
+    .detalle { font-size: 13px; color: var(--atenuado); }
+    .monto.transferencia, .monto.cambio { color: var(--neutro); }
+    .icono.ahorro { background: var(--ahorro-fondo); color: var(--ahorro); }
+    .monto.ahorro { color: var(--ahorro); }
     svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   `,
 })
@@ -48,7 +53,12 @@ export class FilaMovimientoComponent {
   readonly eliminable = input(false);
   readonly eliminar = output<void>();
 
-  readonly clase = computed(() => this.movimiento().tipo);
+  /** Las transferencias que tocan ahorros u objetivos llevan además la clase `ahorro`. */
+  readonly clase = computed(() => {
+    const m = this.movimiento();
+    const tocaAhorro = m.tipo === 'transferencia' && m.partes.some((p) => p.bolsillo === 'ahorros' || p.objetivo_id);
+    return tocaAhorro ? 'transferencia ahorro' : m.tipo;
+  });
   // Movimientos de una moneda anterior a los dólares pueden no traerla: son pesos
   readonly moneda = computed(() => this.movimiento().moneda ?? 'ARS');
   /** Transferencias y cambios no suman ni restan: se muestran como un pase de plata. */
